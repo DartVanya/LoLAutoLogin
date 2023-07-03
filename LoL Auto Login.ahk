@@ -470,7 +470,7 @@ TryExit()
 ToolTipFM.Color(, 0xCC3300), ToolTipFM.Set("Авторизация прервана! Возврат к фоновому режиму.", 3000, LAL, TT_Icon)
 return
 
-SoftRestart(ByRef LChWND, FromSleep:=false) {
+SoftRestart(ByRef LChWND) {
 	;WinGet, LC_MinMax, MinMax, ahk_id %LChWND%
 	;if (LC_MinMax = -1)
 		;WinRestore, ahk_id %LChWND%
@@ -494,16 +494,18 @@ SoftRestart(ByRef LChWND, FromSleep:=false) {
 		}
 		Sleep, 50
 	}
-	if FromSleep
-		SetTimer, main, -1
 	return !gInterrupt ? true : -3
 }
 
 FullRestart(ByRef LChWND, FromSleep:=false) {
 	ToolTipFM.Set("Выполняется перезапуск клиента.`nОжидание закрытия процессов Riot Client…", 4000, LAL, TT_Icon)
-	WinClose, ahk_id %LChWND%
-	WinClose, ahk_id %LChWND%
-	Process, WaitClose, RiotClientServices.exe, 10
+	if (FromSleep)
+		Kill_RC_LC()
+	else {
+		WinClose, ahk_id %LChWND%
+		WinClose, ahk_id %LChWND%
+		Process, WaitClose, RiotClientServices.exe, 10
+	}
 	if (gInterrupt)
 		return false
 	if (ErrorLevel)
@@ -531,7 +533,7 @@ AHK_NotifyTrayIcon(wParam, lParam, msg, hwnd) {
 			Gui, Hide
 	}
 	if (ForceRestart & 4 && msg = 0x218 && wParam = 0x7 && (LChWND := WinExist("ahk_exe LeagueClientUx.exe"))) {
-		timer := Func("SoftRestart").Bind(LChWND, true)
+		timer := Func("FullRestart").Bind(LChWND, true)
 		SetTimer, % timer, -2000
 	}
 }
