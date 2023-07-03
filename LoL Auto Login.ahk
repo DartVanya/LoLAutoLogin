@@ -1322,7 +1322,7 @@ CheckForUpdate() {
 ReceiveUpdate(pData, length, moreDataAvailable) {
 	if moreDataAvailable {
 		Update.File.RawWrite(pData+0, length), Update.size += length
-		ToolTipFM.Set("Выполняется загрузка обновления...`nЗавершено " Round(Update.size/UpdateFullSize*100) "%  - "
+		ToolTipFM.Set("Выполняется загрузка обновления...`nЗавершено " Round(Update.size/Update.FullSize*100) "%  - "
 					  . Round(Update.size/1024/1024, 2) "/" Update.FullSizeTT " МБ", -1, LAL, TT_Icon)
 	}
 	else {
