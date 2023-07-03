@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.1.2.1", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.1.2.2", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -26,7 +26,7 @@ global ProgVersion := "5.1.2.1", Author := "Dart Vanya", LAL := "LoL Auto Login"
 
 ;@Ahk2Exe-PostExec "%A_ScriptDir%\version gen.bat" %U_version%, , %A_ScriptDir%, 1, 1
 
-;@Ahk2Exe-Base  Unicode 64*
+;@Ahk2Exe-Base  Unicode 64*,
 ;@Ahk2Exe-Base  Unicode 32*, Release\LoL Auto Login
 ;@Ahk2Exe-Base  Unicode 64*, Release\LoL Auto Login x64
 
@@ -104,11 +104,13 @@ global ProgName := LAL . " by " . Author
 	 , IniCopyright := "[" . LAL_sec . "] - " . ProgName . ". Version " . ProgVersion
 	 , SC_Name := LAL . " Config.lnk"
 	 , MainStart := false, CloseRC_flag, WaitForLC, Persistent_flag, SoftRestart, ForceRestart, gInterrupt := false
+	 , CheckForUpdate_flag
 LAL_hk := "Ctrl+Win+L", Config_hk := "Ctrl+Win+K", Interrupt_hk := "Ctrl+Win+I"
-MenuSettings := "Настройки" A_Tab Config_hk, MenuExit := "Выход", MenuVersion := "Версия"
-MenuCloseRC := "Закрывать Riot Client", MenuPersistent := "Не выходить после авторизации в игру", MenuAutorun := "Запускать вместе с Windows"
-MenuFR := "Принудительный перезапуск клиента", MenuFRfast := "Быстрый", MenuFRfull := "Полный", MenuFRask := "Спрашивать",
-MenuFRsleep := "При выходе из спящего режима", MenuInterrupt := "Прервать авторизацию" A_Tab Interrupt_hk
+, MenuSettings := "Настройки" A_Tab Config_hk, MenuExit := "Выход", MenuVersion := "Версия"
+, MenuCloseRC := "Закрывать Riot Client", MenuPersistent := "Не выходить после авторизации в игру", MenuAutorun := "Запускать вместе с Windows"
+, MenuFR := "Принудительный перезапуск клиента", MenuFRfast := "Быстрый", MenuFRfull := "Полный", MenuFRask := "Спрашивать"
+, MenuFRsleep := "При выходе из спящего режима", MenuInterrupt := "Прервать авторизацию" A_Tab Interrupt_hk
+, MenuUpdateCheck := "Проверять наличие обновлений"
 Locales := "ar_AE|cs_CZ|de_DE|el_GR|en_US|es_MX|es_ES|fr_FR|hu_HU|id_ID|it_IT|ja_JP|ms_MY|pl_PL|pt_BR|ro_RO|ru_RU|th_TH|tr_TR|vi_VN|zh_TW"
 ;RegionsArr := {BR: "BR", EUNE: "EUNE", EUW: "EUW", JP: "JP", LAN: "LA1", LAS: "LA2", NA: "NA", OCE: "OC1", RU: "ru_RU", TR: "TR"}
 FirstRun := true
@@ -165,17 +167,20 @@ if (ForceRestart & 4)
 Menu, Tray, Add, %MenuCloseRC%, CloseRC
 Menu, Tray, Add, %MenuPersistent%, LAL_Persistent
 Autorun := new Autorun(MenuAutorun, "-autorun", "AR_SysMenuCheck")
+Menu, Tray, Add, %MenuUpdateCheck%, ToggleUpdateCheck
 Menu, Tray, Add, %MenuExit%, Exit
 IniRead, CloseRC_flag, % IniName, % LAL_sec, CloseRC, % false
 Menu, Tray, % (CloseRC_flag ? "":"Un") "Check", 7&
 Menu, Tray, % (Persistent_flag ? "":"Un") "Check", 8&
+IniRead, CheckForUpdate_flag, % IniName, % LAL_sec, CheckForUpdate, % true
+Menu, Tray, % (CheckForUpdate_flag ? "":"Un") "Check", 10&
 Menu, Tray, Tip, %ProgName%
 Menu, Tray, Icon
 
 ;global TT_Icon := TrayIcon_GetInfo(A_ScriptHwnd, 0x404).hicon
-global 	TT_Icon := LoadPicture(A_IsCompiled ? A_ScriptFullPath : "C:\Users\Dart Vanya\Desktop\AHK-проекты\! Icons\lc.ico", , icon_type)
+global 	TT_Icon := LoadPicture(A_IsCompiled ? A_ScriptFullPath : "lc.ico", , icon_type)
 		, ToolTipFM := new ToolTipFM()
-		, UpdateRequest, UpdateEvent, UpdateFullSize, Update := {"complete": false, "size": 0, "data": ""}
+		, UpdateRequest, UpdateEvent, Update := {"size": 0, "FullSize": 0}
 		, UpdateUrl := "https://github.com/DartVanya/LoLAutoLogin/releases/latest/download/LoL.Auto.Login" (A_PtrSize=8 ? ".x64" : "") ".exe"
 
 InitGui()
@@ -189,7 +194,7 @@ if !FileExist(SC_Name)
 if FileExist(A_ScriptName ".old")
 	FileDelete, % A_ScriptName ".old"
 
-if (DllCall("Sensapi\IsNetworkAlive","UintP", lpdwFlags)) {
+if (CheckForUpdate_flag && DllCall("Sensapi\IsNetworkAlive","UintP", lpdwFlags)) {
 	UpdateRequest := ComObjCreate("Msxml2.XMLHTTP")
 	UpdateRequest.open("GET", "https://raw.githubusercontent.com/DartVanya/LoLAutoLogin/main/version.txt", true)
 	UpdateRequest.onreadystatechange := Func("CheckForUpdate")
@@ -615,18 +620,20 @@ InitGui() {
 				ForceRestart,	%MenuFRsleep%,		ForceRestartFromSleep
 		"%MenuCloseRC%",							CloseRC
 		"%MenuPersistent%",							LAL_Persistent
-		"%MenuAutorun%",							AutorunSys
+		"%MenuUpdateCheck%",						ToggleUpdateCheck
 		"%MenuExit%",								Exit
 	)
-
 	SysMenu := new SysMenu(hLAL, SysMenuItems, "Restore,Move,Size,Minimize,Maximize,Separator")
+	SysMenu.Insert("ToggleUpdateCheck", MenuAutorun, ObjBindMethod(Autorun, "AutorunSetup"), , , true)
 
 	if (CloseRC_flag)
 		SysMenu.Check("CloseRC", , true)
 	if (Persistent_flag)
 		SysMenu.Check("LAL_Persistent", , true)
 	if (Autorun.isOn())
-		SysMenu.Check("AutorunSys", , true)
+		SysMenu.Check(MenuAutorun)
+	if (CheckForUpdate_flag)
+		SysMenu.Check("ToggleUpdateCheck", , true)
 	switch ForceRestart & 3
 	{
 		case 1:
@@ -672,12 +679,15 @@ LAL_Persistent(){
 	SysMenu.ToggleCheck("LAL_Persistent", , true)
 }
 
-AutorunSys(){
-	Autorun.AutorunSetup()
+AR_SysMenuCheck(){
+	global
+	SysMenu.ToggleCheck(MenuAutorun)
 }
 
-AR_SysMenuCheck(){
-	SysMenu.ToggleCheck("AutorunSys", , true)
+ToggleUpdateCheck() {
+	IniWrite, % CheckForUpdate_flag := !CheckForUpdate_flag, % IniName, % LAL_sec, CheckForUpdate
+	Menu, Tray, ToggleCheck, 10&
+	SysMenu.ToggleCheck("ToggleUpdateCheck", , true)
 }
 
 #If (WinActive("ahk_id" . hLAL) || WinMouseOver()) && AccsCount
@@ -1298,9 +1308,11 @@ CheckForUpdate() {
 				WinHttp := ComObjCreate("WinHttp.WinHttpRequest.5.1")
 				WinHttp.Open("HEAD", UpdateUrl, true), WinHttp.Send()
 				WinHttp.WaitForResponse()
-				UpdateFullSize := WinHttp.GetResponseHeader("Content-Length")
+				Update.FullSize := WinHttp.GetResponseHeader("Content-Length"), Update.FullSizeTT := Round(Update.FullSize/1024/1024, 2)
 				UpdateEvent := new IWinHttpRequestEvents(WinHttp, Func("ReceiveUpdate"))
-				WinHttp.Open("GET", UpdateUrl, true), WinHttp.Send()
+				WinHttp.Open("GET", UpdateUrl, true)
+				Update.File := FileOpen(A_ScriptName, "w")
+				WinHttp.Send()
 				return
 			}
 		}
@@ -1309,16 +1321,15 @@ CheckForUpdate() {
 
 ReceiveUpdate(pData, length, moreDataAvailable) {
 	if moreDataAvailable {
-		prevSize := Update.size, Update.size += length, Update.SetCapacity("data", Update.size)
-		DllCall("RtlMoveMemory", "Ptr", Update.GetAddress("data") + prevSize, "Ptr", pData, "Ptr", length)
-		ToolTipFM.Set("Выполняется загрузка обновления...`nЗавершено " Round(Update.size/UpdateFullSize*100) "%", -1, LAL, TT_Icon)
+		Update.File.RawWrite(pData+0, length), Update.size += length
+		ToolTipFM.Set("Выполняется загрузка обновления...`nЗавершено " Round(Update.size/UpdateFullSize*100) "%  - "
+					  . Round(Update.size/1024/1024, 2) "/" Update.FullSizeTT " МБ", -1, LAL, TT_Icon)
 	}
 	else {
 		ToolTipFM.Color(, "Green")
-		, ToolTipFM.Set("Выполняется загрузка обновления...`nЗавершено 100%`nУстановка обновления...", -1, LAL, TT_Icon)
-		upd := FileOpen(A_ScriptName, "w")
-		upd.RawWrite(Update.GetAddress("data")+0, Update.size)
-		upd.Close()
+		, ToolTipFM.Set("Выполняется загрузка обновления...`nЗавершено 100% - "
+					  . Update.FullSizeTT "/" Update.FullSizeTT " МБ`nУстановка обновления...", -1, LAL, TT_Icon)
+		Update.File.Close()
 		Sleep, 700
 		Run, % DllCall("GetCommandLine", "Str")
 		ExitApp
