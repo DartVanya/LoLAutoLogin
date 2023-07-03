@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.1.2.0", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.1.2.1", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -920,11 +920,6 @@ return
 GuiControl, % ((PassCheck := !PassCheck) ? "-" : "+") . "Password", Password
 GuiControl, , % hPassCheck, % PassCheck
 return
-
-IsLoginNotFocus() {
-	GuiControlGet, Focused, FocusV
-	return Focused != "Login" && Focused != "Password"
-}
 
 EnterPass:
 Gui, +OwnDialogs
