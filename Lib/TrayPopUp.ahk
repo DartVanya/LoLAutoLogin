@@ -1,6 +1,6 @@
 ﻿class TrayPopUp {
     static uTaskbarRestart := DllCall("RegisterWindowMessage", "Str", "TaskbarCreated")
-    __New(hWnd, CloseDelay := 450, AnimSpeed := 0, Margin := 5, uId:=0x404) {
+    __New(hWnd, CloseDelay := 450, Margin := 0, AnimSpeed := 0, uId:=0x404) {
         this.SelectGui(hWnd), this.uId := uId, this.CloseDelay := CloseDelay, this.AnimSpeed := AnimSpeed, this.Margin := Margin
         this.timer := ObjBindMethod(this, "TryHide")
         this.onTaskbarRestart := Func("TrayIcon_SetVersion4").Bind(A_ScriptHwnd, this.uId)
@@ -54,7 +54,7 @@
             switch (panelY) {
                 case this.monitorY: Y := IconRect.Y + IconRect.H + this.Margin
                                     , this.flag_show := 0x4, this.flag_hide := 0x8
-                Default:            Y := IconRect.Y - this.H - this.Margin
+                Default:            Y := IconRect.Y - this.H - this.Margin + 5
                                     , this.flag_show := 0x8, this.flag_hide := 0x4
             }
         }

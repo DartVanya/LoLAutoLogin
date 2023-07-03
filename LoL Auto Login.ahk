@@ -589,7 +589,7 @@ InitGui() {
 	AddTooltip(hAbout, "Справка/О программе (F1)")
 	AddTooltip(hChoosePath, "Выбрать путь к папке с игрой")
 	AddTooltip(hAccNumberGUI, "Выбор аккаунта из имеющихся в базе (Прокрутка колеса, Up/Down)")
-	AddTooltip(hPassCheck, "Показать/скрыть пароль (Space)")
+	AddTooltip(hPassCheck, "Показать/скрыть пароль (Ctrl+Space)")
 	AddTooltip(hLocale, "Выбор языка локали для клиента игры")
 	AddTooltip(hEnterPass, "Сохранить и выполнить вход в игру (Enter)")
 	AddTooltip(hCreateShortcut, "Создать ярлык на выбранные аккаунт (Ctrl+Q).`nОткроется стандартное окно сохранения.")
@@ -640,7 +640,7 @@ InitGui() {
 		SysMenu.ForceRestart.Check(5)
 	ReadAccount()
 	Gui, Show, Hide, % ProgName
-	TrayPopUp := new TrayPopUp(hLAL, , , 0)
+	TrayPopUp := new TrayPopUp(hLAL)
 	TrayPopUp.onShow("RereadAccount")
 	TrayPopUp.onHide("HidePass")
 	WheelFn := Func("WinMouseOver").Bind(hLAL)
@@ -651,14 +651,10 @@ InitGui() {
 }
 
 WM_CHAR(wParam, lParam){
-	if (A_GuiControl = "Login" && Chr(wParam) ~= "[ !""#\$%&’\(\)\*\+,-\./:;<=>\?@\[\\\]\^_`{|}~]") {
-		SetTimer, PlaySound, -1
-		return false
-	}
-}
-
-PlaySound() {
-	SoundPlay, % A_WinDir "\Media\Windows Ding.wav"
+	static SND_FILENAME := 0x1, SND_ASYNC := 0x00020000, fdwSound := SND_FILENAME | SND_ASYNC
+			, pszSound := A_WinDir "\Media\Windows Ding.wav"
+	if (A_GuiControl = "Login" && Chr(wParam) ~= "[ !""#\$%&’\(\)\*\+,-\./:;<=>\?@\[\\\]\^_`{|}~]")
+		return DllCall("winmm.dll\PlaySoundW", "Str",pszSound, "Ptr",0, "UInt",fdwSound) & false
 }
 
 CloseRC(){
@@ -920,10 +916,15 @@ GuiControl, % (PassCheck ? "-" : "+") . "Password", Password
 return
 
 #If WinActive("ahk_id" . hLAL) || WinMouseOver()
-Space::
+^Space::
 GuiControl, % ((PassCheck := !PassCheck) ? "-" : "+") . "Password", Password
 GuiControl, , % hPassCheck, % PassCheck
 return
+
+IsLoginNotFocus() {
+	GuiControlGet, Focused, FocusV
+	return Focused != "Login" && Focused != "Password"
+}
 
 EnterPass:
 Gui, +OwnDialogs
