@@ -166,7 +166,7 @@ Menu, Tray, Add, %MenuCloseRC%, CloseRC
 Menu, Tray, Add, %MenuPersistent%, LAL_Persistent
 Autorun := new Autorun(MenuAutorun, "-autorun", "AR_SysMenuCheck")
 Menu, Tray, Add, %MenuUpdateCheck%, ToggleUpdateCheck
-Menu, Tray, Add, %MenuExit%, Exit
+Menu, Tray, Add, %MenuExit%, AppExit
 IniRead, CloseRC_flag, % IniName, % LAL_sec, CloseRC, % false
 Menu, Tray, % (CloseRC_flag ? "":"Un") "Check", 7&
 Menu, Tray, % (Persistent_flag ? "":"Un") "Check", 8&
@@ -513,7 +513,7 @@ FullRestart(ByRef LChWND, FromSleep:=false) {
 }
 
 AHK_NotifyTrayIcon(wParam, lParam, msg, hwnd) {
-	switch (lparam)
+	switch (lParam)
 	{
 		case WM.MBUTTONUP:
 		{
@@ -1137,7 +1137,7 @@ RC_tt(bEnable=true) {
 		ToolTipFM.Off()
 }
 
-Exit() {
+AppExit() {
 	ExitApp
 }
 
@@ -1351,7 +1351,7 @@ GetParentProcess(PID) {
 	DllCall("Process32First" (A_IsUnicode ? "W" : ""), "ptr", h, "ptr", &pEntry)
 	loop
 	{
-		if (pid = NumGet(pEntry, 8, "uint") || !DllCall(function, "ptr", h, "ptr", &pEntry))
+		if (PID = NumGet(pEntry, 8, "uint") || !DllCall(function, "ptr", h, "ptr", &pEntry))
 			break
 	}
 	DllCall("CloseHandle", "ptr", h)
