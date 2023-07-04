@@ -219,16 +219,15 @@ Gui, +OwnDialogs
 MainStart := true, SoftRestart := false
 Menu, Tray, Rename, 1&, %MenuInterrupt%
 if FirstRun {
-	FirstRun := false
 	IniRead, LoLPath, % IniName, % LAL_sec, LoLPath, % false
 	IniRead, Login, % IniName, % AccNumber, Login, % false
 	IniRead, Password, % IniName, % AccNumber, PasswordEnc, % false
 	IniRead, Locale, % IniName, % AccNumber, Locale, % false
 	if (!pass_checkValid() || !LoLPath || !Password || !Login || !Locale) {
 		MainStart := false
-		SetTimer, ShowGui, -1
-		return
+		Goto, ShowGui
 	}
+	FirstRun := false
 }
 GameExistCheck:
 Process, Exist, RiotClientServices.exe
@@ -283,8 +282,7 @@ if (gInterrupt || SoftRestart = -3) {
 }
 if !CheckPath() {
 	MainStart := false
-	SetTimer, ShowGui, -1
-	return
+	Goto, ShowGui
 }
 MainCont:
 if !DllCall("Sensapi\IsNetworkAlive","UintP", lpdwFlags) {
@@ -560,8 +558,7 @@ if WinExist("ahk_id" . hLAL) {
 }
 WheelOnOff("On")
 ;TrayIcon_FromOverflow()
-TrayPopUp.ShowPopUp()
-WinActivate, ahk_id %hLAL%
+TrayPopUp.ShowPopUp(true)
 return
 
 InitGui() {

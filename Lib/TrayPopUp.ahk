@@ -31,7 +31,7 @@
         switch (lparam & 0xFFFF)
         {
             case NIN_POPUPOPEN:
-                this.ShowPopUp(false)
+                this.ShowPopUp(, false)
             case NIN_POPUPCLOSE:
                 this.SetCloseTimer()
 			Default:
@@ -43,7 +43,7 @@
             DllCall("SendMessage", "UPtr", hwnd, "UInt", msg, "UPtr", (lparam >> 16) & 0xFFFF, "Ptr", lparam & 0xFFFF)
         }
     }
-    ShowPopUp(vManual := true) {
+    ShowPopUp(vActivate:=false, vManual := true) {
         if this.GuiOff
             return this.ShowHandler && this.ShowHandler()
         this.activeMonitorInfo()
@@ -76,7 +76,7 @@
             Gui, % this.HWND ": Show", Hide x%X% y%Y%
             DllCall("AnimateWindow", "Ptr", this.HWND, "Int", this.AnimSpeed, "Int", 0x40000|this.flag_show)
         }
-        Gui, % this.HWND ": Show", NA x%X% y%Y%
+        Gui, % this.HWND ": Show", % (vActivate ? "" : "NA") "x" X " y" Y
         ( vManual && this.SetCloseTimer() )
 
     }
