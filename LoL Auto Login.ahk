@@ -622,7 +622,7 @@ InitGui() {
 		"%MenuCloseRC%",							CloseRC
 		"%MenuPersistent%",							LAL_Persistent
 		"%MenuUpdateCheck%",						ToggleUpdateCheck
-		"%MenuExit%",								Exit
+		"%MenuExit%",								AppExit
 	)
 	SysMenu := new SysMenu(hLAL, SysMenuItems, "Restore,Move,Size,Minimize,Maximize,Separator")
 	SysMenu.Insert("ToggleUpdateCheck", MenuAutorun, ObjBindMethod(Autorun, "AutorunSetup"), , , true)
