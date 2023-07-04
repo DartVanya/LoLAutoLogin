@@ -1,5 +1,5 @@
 ﻿; LoL Auto Login by Dart Vanya
-#Requires AutoHotkey Unicode
+#Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
 global ProgVersion := "5.1.2.2", Author := "Dart Vanya", LAL := "LoL Auto Login"
@@ -26,9 +26,7 @@ global ProgVersion := "5.1.2.2", Author := "Dart Vanya", LAL := "LoL Auto Login"
 
 ;@Ahk2Exe-PostExec "%A_ScriptDir%\version gen.bat" %U_version%, , %A_ScriptDir%, 1, 1
 
-;@Ahk2Exe-Base  Unicode 64*,
-;@Ahk2Exe-Base  Unicode 32*, Release\LoL Auto Login
-;@Ahk2Exe-Base  Unicode 64*, Release\LoL Auto Login x64
+;@Ahk2Exe-ExeName %A_ScriptDir%\Release\LoL Auto Login
 
 #NoEnv
 #SingleInstance Off
@@ -181,7 +179,7 @@ Menu, Tray, Icon
 global 	TT_Icon := LoadPicture(A_IsCompiled ? A_ScriptFullPath : "lc.ico", , icon_type)
 		, ToolTipFM := new ToolTipFM()
 		, UpdateRequest, UpdateEvent, Update := {"size": 0, "FullSize": 0}
-		, UpdateUrl := "https://github.com/DartVanya/LoLAutoLogin/releases/latest/download/LoL.Auto.Login" (A_PtrSize=8 ? ".x64" : "") ".exe"
+		, UpdateUrl := "https://github.com/DartVanya/LoLAutoLogin/releases/latest/download/LoL.Auto.Login.exe"
 
 InitGui()
 OnMessage(0x404, "AHK_NotifyTrayIcon")
@@ -228,7 +226,8 @@ if FirstRun {
 	IniRead, Locale, % IniName, % AccNumber, Locale, % false
 	if (!pass_checkValid() || !LoLPath || !Password || !Login || !Locale) {
 		MainStart := false
-		Goto, ShowGui
+		SetTimer, ShowGui, -1
+		return
 	}
 }
 GameExistCheck:
@@ -284,7 +283,8 @@ if (gInterrupt || SoftRestart = -3) {
 }
 if !CheckPath() {
 	MainStart := false
-	Goto, ShowGui
+	SetTimer, ShowGui, -1
+	return
 }
 MainCont:
 if !DllCall("Sensapi\IsNetworkAlive","UintP", lpdwFlags) {
@@ -499,19 +499,18 @@ SoftRestart(ByRef LChWND) {
 
 FullRestart(ByRef LChWND, FromSleep:=false) {
 	ToolTipFM.Set("Выполняется перезапуск клиента.`nОжидание закрытия процессов Riot Client…", 4000, LAL, TT_Icon)
-	if (FromSleep)
+	if (FromSleep) {
 		Kill_RC_LC()
-	else {
-		WinClose, ahk_id %LChWND%
-		WinClose, ahk_id %LChWND%
-		Process, WaitClose, RiotClientServices.exe, 10
+		SetTimer, main, -1
+		return
 	}
+	WinClose, ahk_id %LChWND%
+	WinClose, ahk_id %LChWND%
+	Process, WaitClose, RiotClientServices.exe, 10
 	if (gInterrupt)
 		return false
 	if (ErrorLevel)
 		Kill_RC_LC()
-	if FromSleep
-		SetTimer, main, -1
 	return true
 }
 
@@ -520,6 +519,9 @@ AHK_NotifyTrayIcon(wParam, lParam, msg, hwnd) {
 	{
 		case WM.MBUTTONUP:
 		{
+			timer := Func("FullRestart").Bind(LChWND, true)
+		SetTimer, % timer, -2000
+		return
 			if (WaitForLC)
 				ToolTipFM.SetOffset(), ToolTipFM.Color(, 0xCC3300)
 				, ToolTipFM.Set("Аккаунт можно будет сменить только после окончания авторизации!"
@@ -1159,8 +1161,13 @@ GetAccsList(ByRef AccsCount:="") {
 Kill_RC_LC() {
 	Process, Close, LeagueClient.exe
 	Process, Close, RiotClientServices.exe
-	Process, WaitClose, LeagueClient.exe
-	Process, WaitClose, RiotClientServices.exe
+	Process, WaitClose, RiotClientServices.exe, 5
+	Process, WaitClose, RiotClientCrashHandler.exe, 5
+	Process, WaitClose, LeagueClient.exe, 5
+	Process, WaitClose, LeagueCrashHandler64.exe, 5
+	Process, WaitClose, LeagueClientUxRender.exe, 5
+	Process, WaitClose, RiotClientUx.exe, 5
+	Process, WaitClose, RiotClientUxRender.exe, 5
 }
 
 MainExit(DoExit = true) {
