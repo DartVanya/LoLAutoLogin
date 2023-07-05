@@ -1297,7 +1297,7 @@ CheckForUpdate() {
 	if (UpdateRequest.readyState != 4)  ; Not done yet.
         return
 	if (UpdateRequest.status == 200) {  ; OK.
-		if (ProgVersion != (NewVersion := UpdateRequest.responseText) && VerCompare(ProgVersion, NewVersion) < 0) {
+		if (VerCompare(ProgVersion, NewVersion := UpdateRequest.responseText) < 0) {
 			MsgBox, 36, % ProgName,
 			(LTrim
 				Доступна новая версия LoL Auto Login.
