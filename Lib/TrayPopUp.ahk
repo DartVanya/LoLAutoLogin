@@ -54,7 +54,7 @@
             switch (panelY) {
                 case this.monitorY: Y := IconRect.Y + IconRect.H + this.Margin
                                     , this.flag_show := 0x4, this.flag_hide := 0x8
-                Default:            Y := IconRect.Y - this.H - this.Margin + 5
+                Default:            Y := IconRect.Y - this.H - this.Margin + 3
                                     , this.flag_show := 0x8, this.flag_hide := 0x4
             }
         }

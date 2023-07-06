@@ -517,9 +517,6 @@ AHK_NotifyTrayIcon(wParam, lParam, msg, hwnd) {
 	{
 		case WM.MBUTTONUP:
 		{
-			timer := Func("FullRestart").Bind(LChWND, true)
-		SetTimer, % timer, -2000
-		return
 			if (WaitForLC)
 				ToolTipFM.SetOffset(), ToolTipFM.Color(, 0xCC3300)
 				, ToolTipFM.Set("Аккаунт можно будет сменить только после окончания авторизации!"
