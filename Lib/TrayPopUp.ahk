@@ -1,11 +1,11 @@
 ﻿class TrayPopUp {
-    static uTaskbarRestart := DllCall("RegisterWindowMessage", "Str", "TaskbarCreated")
+    static uTaskbarRestart := DllCall("RegisterWindowMessage", "Str", "TaskbarCreated"), NotOnWin11 := !VerCompare(A_OSVersion, ">=10.0.22000")
     __New(hWnd, CloseDelay := 450, Margin := 0, AnimSpeed := 0, uId:=0x404) {
         this.SelectGui(hWnd), this.uId := uId, this.CloseDelay := CloseDelay, this.AnimSpeed := AnimSpeed, this.Margin := Margin
         this.timer := ObjBindMethod(this, "TryHide")
         this.onTaskbarRestart := Func("TrayIcon_SetVersion4").Bind(A_ScriptHwnd, this.uId)
         TrayIcon_SetVersion4(A_ScriptHwnd, this.uId), TrayIcon_Set(A_ScriptHwnd, this.uId, "")
-        OnMessage(this.uId, this), OnMessage(this.uTaskbarRestart, this)
+        OnMessage(this.uId, this, 2), OnMessage(this.uTaskbarRestart, this)
     }
     Disable(bDisable:=true) {
         OnMessage(this.uId, this, !bDisable), OnMessage(this.uTaskbarRestart, this, bDisable ? 0 : 1)
@@ -31,9 +31,14 @@
         switch (lparam & 0xFFFF)
         {
             case NIN_POPUPOPEN:
-                this.ShowPopUp(, false)
+                if (!this.NotOnWin11)
+                    Sleep, % this.CloseDelay
+                if (this.NotOnWin11 || !this.AlreadyClosed)
+                    this.ShowPopUp(, false)
             case NIN_POPUPCLOSE:
                 this.SetCloseTimer()
+                if (!this.NotOnWin11)
+                    this.AlreadyClosed := true
 			Default:
             if (msg = this.uTaskbarRestart) {
                 timer := this.onTaskbarRestart
@@ -95,6 +100,8 @@
             else
                 DllCall("AnimateWindow", "Ptr", this.HWND, "Int", this.AnimSpeed, "Int", 0x10000|0x40000|this.flag_hide)
         }
+        if (!this.NotOnWin11)
+            this.AlreadyClosed := false
     }
     WinMouseOver() {
         MouseGetPos,,, Win
