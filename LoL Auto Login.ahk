@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.1.2.3", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.1.2.4", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -172,7 +172,6 @@ Menu, Tray, % (CloseRC_flag ? "":"Un") "Check", 7&
 Menu, Tray, % (Persistent_flag ? "":"Un") "Check", 8&
 IniRead, CheckForUpdate_flag, % IniName, % LAL_sec, CheckForUpdate, % true
 Menu, Tray, % (CheckForUpdate_flag ? "":"Un") "Check", 10&
-Menu, Tray, Tip, %ProgName%
 Menu, Tray, Icon
 
 ;global TT_Icon := TrayIcon_GetInfo(A_ScriptHwnd, 0x404).hicon

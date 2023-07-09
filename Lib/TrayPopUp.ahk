@@ -4,7 +4,7 @@
         this.SelectGui(hWnd), this.uId := uId, this.CloseDelay := CloseDelay, this.AnimSpeed := AnimSpeed, this.Margin := Margin
         this.timer := ObjBindMethod(this, "TryHide")
         this.onTaskbarRestart := Func("TrayIcon_SetVersion4").Bind(A_ScriptHwnd, this.uId)
-        TrayIcon_SetVersion4(A_ScriptHwnd, this.uId)
+        TrayIcon_SetVersion4(A_ScriptHwnd, this.uId), TrayIcon_Set(A_ScriptHwnd, this.uId, "")
         OnMessage(this.uId, this), OnMessage(this.uTaskbarRestart, this)
     }
     Disable(bDisable:=true) {
