@@ -31,14 +31,16 @@
         switch (lparam & 0xFFFF)
         {
             case NIN_POPUPOPEN:
-                if (!this.NotOnWin11)
+                if (!this.NotOnWin11) {
+                    this.AlreadyClosed := false
                     Sleep, % this.CloseDelay
+                }
                 if (this.NotOnWin11 || !this.AlreadyClosed)
                     this.ShowPopUp(, false)
             case NIN_POPUPCLOSE:
-                this.SetCloseTimer()
                 if (!this.NotOnWin11)
                     this.AlreadyClosed := true
+                this.SetCloseTimer()
 			Default:
             if (msg = this.uTaskbarRestart) {
                 timer := this.onTaskbarRestart
@@ -100,8 +102,6 @@
             else
                 DllCall("AnimateWindow", "Ptr", this.HWND, "Int", this.AnimSpeed, "Int", 0x10000|0x40000|this.flag_hide)
         }
-        if (!this.NotOnWin11)
-            this.AlreadyClosed := false
     }
     WinMouseOver() {
         MouseGetPos,,, Win

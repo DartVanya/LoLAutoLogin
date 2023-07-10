@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.1.2.5", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.1.2.6", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -533,6 +533,7 @@ AHK_NotifyTrayIcon(wParam, lParam, msg, hwnd) {
 		SetTimer, % timer, -2000
 	}
 }
+
 
 #If
 ^#VK4B up:: 	; Ctrl+Win+K
