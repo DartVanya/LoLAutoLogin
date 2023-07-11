@@ -1,14 +1,15 @@
 ﻿class TrayPopUp {
-    static uTaskbarRestart := DllCall("RegisterWindowMessage", "Str", "TaskbarCreated"), NotOnWin11 := !VerCompare(A_OSVersion, ">=10.0.22000")
+    static uTaskbarRestart := DllCall("RegisterWindowMessage", "Str", "TaskbarCreated"), OSWin11 := VerCompare(A_OSVersion, ">=10.0.22000")
+            , WM_NCACTIVATE := 0x086
     __New(hWnd, CloseDelay := 450, Margin := 0, AnimSpeed := 0, uId:=0x404) {
         this.SelectGui(hWnd), this.uId := uId, this.CloseDelay := CloseDelay, this.AnimSpeed := AnimSpeed, this.Margin := Margin
-        this.timer := ObjBindMethod(this, "TryHide")
+        this.timer := ObjBindMethod(this, "TryHide"), this.timerW11 := ObjBindMethod(this, "ShowPopUp", false, false)
         this.onTaskbarRestart := Func("TrayIcon_SetVersion4").Bind(A_ScriptHwnd, this.uId)
         TrayIcon_SetVersion4(A_ScriptHwnd, this.uId), TrayIcon_Set(A_ScriptHwnd, this.uId, "")
-        OnMessage(this.uId, this, 2), OnMessage(this.uTaskbarRestart, this)
+        OnMessage(this.uId, this), OnMessage(this.uTaskbarRestart, this), OnMessage(this.WM_NCACTIVATE, this)
     }
     Disable(bDisable:=true) {
-        OnMessage(this.uId, this, !bDisable), OnMessage(this.uTaskbarRestart, this, bDisable ? 0 : 1)
+        OnMessage(this.uId, this, !bDisable), OnMessage(this.uTaskbarRestart, this, !bDisable), OnMessage(this.WM_NCACTIVATE, this, !bDisable)
         return TrayIcon_SetVersion4(A_ScriptHwnd, this.uId, bDisable)
     }
 	onShow(UserFN) {
@@ -28,40 +29,53 @@
     }
     Call(wParam, lParam, msg, hwnd) {
         static NIN_POPUPOPEN := 0x406, NIN_POPUPCLOSE := 0x407
+        if (msg = this.WM_NCACTIVATE && !wParam)
+            return this.SetCloseTimer(100)
         switch (lparam & 0xFFFF)
         {
-            case NIN_POPUPOPEN:
-                if (!this.NotOnWin11) {
-                    this.AlreadyClosed := false
-                    Sleep, % this.CloseDelay
-                }
-                if (this.NotOnWin11 || !this.AlreadyClosed)
-                    this.ShowPopUp(, false)
-            case NIN_POPUPCLOSE:
-                if (!this.NotOnWin11)
-                    this.AlreadyClosed := true
-                this.SetCloseTimer()
-			Default:
-            if (msg = this.uTaskbarRestart) {
-                timer := this.onTaskbarRestart
-                SetTimer, % timer, -1
-                return
+        case NIN_POPUPOPEN:
+            this.RButtonPress := false
+            if (this.OSWin11) {
+                this.AlreadyClosed := false
+                timer := this.timerW11
+                SetTimer, % timer, % -this.CloseDelay
             }
-            DllCall("SendMessage", "UPtr", hwnd, "UInt", msg, "UPtr", (lparam >> 16) & 0xFFFF, "Ptr", lparam & 0xFFFF)
+            else
+                this.ShowPopUp(, false)
+            return
+        case NIN_POPUPCLOSE:
+            if (this.OSWin11)
+                this.AlreadyClosed := true
+            return this.SetCloseTimer(this.CloseDelay)
+        case WM.RBUTTONUP, WM.MBUTTONUP:
+            this.RButtonPress := true
         }
+        if (msg = this.uTaskbarRestart) {
+            timer := this.onTaskbarRestart
+            SetTimer, % timer, -1
+            return
+        }
+        DllCall("SendMessage", "UPtr", hwnd, "UInt", msg, "UPtr", (lparam >> 16) & 0xFFFF, "Ptr", lparam & 0xFFFF)
     }
     ShowPopUp(vActivate:=false, vManual := true) {
+        if (this.RButtonPress || (!this.NotOnWin11 && this.AlreadyClosed))
+            return
         if this.GuiOff
             return this.ShowHandler && this.ShowHandler()
         this.activeMonitorInfo()
         IconRect := TrayIcon_GetRect(A_ScriptHwnd, this.uId)
         WinGetPos, panelX, panelY, panelWidth, panelHeight, ahk_class Shell_TrayWnd
+        ; Shell_NotifyIconGetRect для скрытых иконок в Windows 11 был успешно сломан МС и возвращает неизвестный бред
+        if (this.OSWin11 && IconRect.Y > this.monitorHeight) {  ; По известной лишь МС причине, если иконка скрыта, то её Y-координата больше высоты монитора
+            ControlGetPos, W11TrayX, W11TrayY, , , TrayNotifyWnd1, ahk_class Shell_TrayWnd
+            IconRect.X := W11TrayX + panelX, IconRect.Y := W11TrayY + panelY, IconRect.W -= 10
+        }
         if (panelWidth = this.monitorWidth) {
             X := IconRect.X + IconRect.W//2 - this.W//2
             switch (panelY) {
                 case this.monitorY: Y := IconRect.Y + IconRect.H + this.Margin
                                     , this.flag_show := 0x4, this.flag_hide := 0x8
-                Default:            Y := IconRect.Y - this.H - this.Margin + 3
+                Default:            Y := IconRect.Y - this.H - this.Margin + 3 - this.OSWin11*8
                                     , this.flag_show := 0x8, this.flag_hide := 0x4
             }
         }
@@ -87,11 +101,11 @@
         ( vManual && this.SetCloseTimer() )
 
     }
-    SetCloseTimer() {
+    SetCloseTimer(delay) {
         if this.GuiOff
             return this.HideHandler && this.HideHandler()
         timer := this.timer
-        SetTimer, % timer, % this.CloseDelay
+        SetTimer, % timer, % delay
     }
     TryHide() {
         if (!this.WinMouseOver() && !WinActive("ahk_id " this.HWND)) {
