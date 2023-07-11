@@ -2,15 +2,16 @@
     static uTaskbarRestart := DllCall("RegisterWindowMessage", "Str", "TaskbarCreated"), OSWin11 := VerCompare(A_OSVersion, ">=10.0.22000")
             , WM_NCACTIVATE := 0x086
     __New(hWnd, CloseDelay := 450, Margin := 0, AnimSpeed := 0, uId:=0x404) {
-        this.SelectGui(hWnd), this.uId := uId, this.CloseDelay := CloseDelay, this.AnimSpeed := AnimSpeed, this.Margin := Margin
         this.timer := ObjBindMethod(this, "TryHide"), this.timerW11 := ObjBindMethod(this, "ShowPopUp", false, false)
-        this.onTaskbarRestart := Func("TrayIcon_SetVersion4").Bind(A_ScriptHwnd, this.uId)
+        this.SelectGui(hWnd), this.uId := uId, this.CloseDelay := CloseDelay, this.AnimSpeed := AnimSpeed, this.Margin := Margin
         TrayIcon_SetVersion4(A_ScriptHwnd, this.uId), TrayIcon_Set(A_ScriptHwnd, this.uId, "")
         OnMessage(this.uId, this), OnMessage(this.uTaskbarRestart, this), OnMessage(this.WM_NCACTIVATE, this)
     }
     Disable(bDisable:=true) {
-        OnMessage(this.uId, this, !bDisable), OnMessage(this.uTaskbarRestart, this, !bDisable), OnMessage(this.WM_NCACTIVATE, this, !bDisable)
-        return TrayIcon_SetVersion4(A_ScriptHwnd, this.uId, bDisable)
+        timer := this.timer, this.POPUPCLOSE := false
+        SetTimer, % timer, Off
+        OnMessage(this.uId, this, !bDisable), OnMessage(this.WM_NCACTIVATE, this, !bDisable), OnMessage(this.uTaskbarRestart, this, !bDisable) 
+        return ResetIcon && TrayIcon_SetVersion4(A_ScriptHwnd, this.uId, bDisable)
     }
 	onShow(UserFN) {
 		this.ShowHandler := IsObject(UserFN) ? UserFN : Func(UserFN)
@@ -19,6 +20,8 @@
 		this.HideHandler := IsObject(UserFN) ? UserFN : Func(UserFN)
 	}
     SelectGui(hWnd) {
+        timer := this.timer, this.POPUPCLOSE := false
+        SetTimer, % timer, Off
         Gui %hWnd%: +LastFound +AlwaysOnTop +Owner
 		Gui %hWnd%: Show, Hide
         WinGetPos, x, y, w, h
@@ -29,36 +32,45 @@
     }
     Call(wParam, lParam, msg, hwnd) {
         static NIN_POPUPOPEN := 0x406, NIN_POPUPCLOSE := 0x407
-        if (msg = this.WM_NCACTIVATE && !wParam)
-            return this.SetCloseTimer(100)
-        switch (lparam & 0xFFFF)
+        switch msg
         {
-        case NIN_POPUPOPEN:
-            this.RButtonPress := false
-            if (this.OSWin11) {
-                this.AlreadyClosed := false
-                timer := this.timerW11
-                SetTimer, % timer, % -this.CloseDelay
+        case this.uId:
+        {
+            switch (lparam & 0xFFFF)
+            {
+            case NIN_POPUPOPEN:
+                this.POPUPCLOSE := false
+                if (this.OSWin11) {
+                    timer := this.timerW11
+                    SetTimer, % timer, % -this.CloseDelay
+                }
+                else
+                    this.ShowPopUp()
+                return true
+            case NIN_POPUPCLOSE:
+                this.POPUPCLOSE := true, this.SetCloseTimer()
+                return true
+            case WM.MOUSEMOVE:
+                goto, ReTranslateMsg
+            Default:
+                this.POPUPCLOSE := true
             }
-            else
-                this.ShowPopUp(, false)
-            return
-        case NIN_POPUPCLOSE:
-            if (this.OSWin11)
-                this.AlreadyClosed := true
-            return this.SetCloseTimer(this.CloseDelay)
-        case WM.RBUTTONUP, WM.MBUTTONUP:
-            this.RButtonPress := true
+            ReTranslateMsg:
+            return DllCall("SendMessage", "UPtr", hwnd, "UInt", msg, "UPtr", (lparam >> 16) & 0xFFFF, "Ptr", lparam & 0xFFFF)
         }
-        if (msg = this.uTaskbarRestart) {
-            timer := this.onTaskbarRestart
-            SetTimer, % timer, -1
-            return
+        case this.WM_NCACTIVATE:
+            if (hwnd = this.HWND && !wParam) {
+                this.POPUPCLOSE := true, timer := this.timer
+                SetTimer, % timer, -100
+            }
+            return true
+        case this.uTaskbarRestart:
+            Sleep, 0
+            return TrayIcon_SetVersion4(A_ScriptHwnd, this.uId)
         }
-        DllCall("SendMessage", "UPtr", hwnd, "UInt", msg, "UPtr", (lparam >> 16) & 0xFFFF, "Ptr", lparam & 0xFFFF)
     }
-    ShowPopUp(vActivate:=false, vManual := true) {
-        if (this.RButtonPress || (!this.NotOnWin11 && this.AlreadyClosed))
+    ShowPopUp(vActivate:=false, vManual:=false) {
+        if (this.POPUPCLOSE &= !vActivate)
             return
         if this.GuiOff
             return this.ShowHandler && this.ShowHandler()
@@ -98,17 +110,19 @@
             DllCall("AnimateWindow", "Ptr", this.HWND, "Int", this.AnimSpeed, "Int", 0x40000|this.flag_show)
         }
         Gui, % this.HWND ": Show", % (vActivate ? "" : "NA") "x" X " y" Y
-        ( vManual && this.SetCloseTimer() )
-
+        if (!vActivate || vManual)
+            this.SetCloseTimer(), this.POPUPCLOSE := vManual
     }
-    SetCloseTimer(delay) {
+    SetCloseTimer() {
         if this.GuiOff
             return this.HideHandler && this.HideHandler()
-        timer := this.timer
-        SetTimer, % timer, % delay
+        if WinExist("ahk_id" this.HWND) {
+            timer := this.timer
+            SetTimer, % timer, % this.CloseDelay
+        }
     }
     TryHide() {
-        if (!this.WinMouseOver() && !WinActive("ahk_id " this.HWND)) {
+        if (this.POPUPCLOSE && !WinActive("ahk_id" this.HWND) && !this.WinMouseOver()) {
             SetTimer, , Off
             ( this.HideHandler && this.HideHandler() )
             if !this.AnimSpeed

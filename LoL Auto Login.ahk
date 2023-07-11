@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.1.2.7", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.1.3.0", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -980,8 +980,7 @@ F1::
 About() {
 	global
 	static AhkVersion := "AutoHotkey Unicode " . (A_PtrSize = 8 ? "64-bit " : "32-bit ") . A_AhkVersion
-	Gui, %hLAL%:+Disabled
-	Gui, gHelp:New, +hwndhHelp +Owner%hLAL% -MinimizeBox +AlwaysOnTop +LastFound, О программе %LAL%
+	Gui, gHelp:New, +hwndhHelp -MinimizeBox, О программе %LAL%
 	Gui, gHelp:Add, Link, w500,
 	(
 	Эта утилита создана для более быстрой авторизации в League of Legends.
@@ -1006,20 +1005,30 @@ About() {
 	<a href="mailto:dartvanya@gmail.com">dartvanya@gmail.com</a>
 	Скомпилировано в %AhkVersion%
 	)
-	LAL_WasActive  := WinActive("ahk_id " hLAL)
-	TrayPopUp.SelectGui(hHelp), TrayPopUp.ShowPopUp(), TrayPopUp.SelectGui(hLAL)
-	WinActivate, ahk_id %hHelp%
+	LAL_WasActive := WinActive("ahk_id " hLAL)
+	TrayPopUp.SelectGui(hHelp), TrayPopUp.onShow(0), TrayPopUp.onHide(Func("RestoreMainPopUp").Bind(false))
+	Gui, %hLAL%: Hide
+	TrayPopUp.ShowPopUp(LAL_WasActive, true)
 }
+
 
 #If WinActive("ahk_id" . hHelp) || WinMouseOver(hHelp)
 Esc::
-gHelpGuiClose:
-Gui, gHelp:Destroy
-Gui, %hLAL%:-Disabled
-TrayPopUp.ShowPopUp()
-if LAL_WasActive
-	WinActivate, ahk_id %hLAL%
+RestoreMainPopUp(true)
 return
+
+gHelpGuiClose:
+RestoreMainPopUp()
+return
+
+RestoreMainPopUp(EscPress:=false) {
+	global
+	Help_WasActive := WinActive("ahk_id " hHelp)
+	TrayPopUp.SelectGui(hLAL), TrayPopUp.onShow("ReadAccount"), TrayPopUp.onHide("HidePass")
+	Gui, gHelp:Destroy
+	if (EscPress || Help_WasActive)
+		TrayPopUp.ShowPopUp(Help_WasActive, true)
+}
 
 ForceRestartHandler(ItemName, ItemPos) {
 	global
