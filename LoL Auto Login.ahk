@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.1.3.0", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.1.3.1", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -102,7 +102,7 @@ global ProgName := LAL . " by " . Author
 	 , IniCopyright := "[" . LAL_sec . "] - " . ProgName . ". Version " . ProgVersion
 	 , SC_Name := LAL . " Config.lnk"
 	 , MainStart := false, CloseRC_flag, WaitForLC, Persistent_flag, SoftRestart, ForceRestart, gInterrupt := false
-	 , CheckForUpdate_flag
+	 , CheckForUpdate_flag, hLAL
 LAL_hk := "Ctrl+Win+L", Config_hk := "Ctrl+Win+K", Interrupt_hk := "Ctrl+Win+I"
 , MenuSettings := "Настройки" A_Tab Config_hk, MenuExit := "Выход", MenuVersion := "Версия"
 , MenuCloseRC := "Закрывать Riot Client", MenuPersistent := "Не выходить после авторизации в игру", MenuAutorun := "Запускать вместе с Windows"
@@ -183,6 +183,7 @@ global 	TT_Icon := LoadPicture(A_IsCompiled ? A_ScriptFullPath : "lc.ico", , ico
 InitGui()
 OnMessage(0x404, "AHK_NotifyTrayIcon")
 OnMessage(0x218, "AHK_NotifyTrayIcon")
+OnMessage(0x44, "Move_MsgBox")
 
 SetIniCopyright()
 
@@ -662,6 +663,17 @@ WM_CHAR(wParam, lParam){
 		return DllCall("winmm.dll\PlaySoundW", "Str",pszSound, "Ptr",0, "UInt",fdwSound) & false
 }
 
+Move_MsgBox(wParam) {
+	static LAL_PID := DllCall("GetCurrentProcessId")
+	if (!MainStart && wParam = 1027) {
+		DetectHiddenWindows, % (d := A_DetectHiddenWindows) ? "On" :
+		WinGetPos, lX, lY, lW, lH, ahk_id %hLAL%
+		WinGetPos,,, mW, mH, % "ahk_id " WinExist("ahk_class #32770 ahk_pid " LAL_PID)
+		WinMove, (lW-mW)/2 + lX, (lH-mH)/2 + lY
+		DetectHiddenWindows, %d%
+	}
+}
+
 CloseRC(){
 	global
 	IniWrite, % CloseRC_flag := !CloseRC_flag, % IniName, % LAL_sec, CloseRC
@@ -910,12 +922,12 @@ Gui, +OwnDialogs
 EnvGet, SysDrive, HOMEDRIVE
 FileSelectFile, LoLPath, , %SysDrive%\, Выберите путь к LeagueClient.exe, LeagueClient.exe
 if !(LoLPath)
-	return
+	goto, ShowGui
 SplitPath, LoLPath, , LoLPath
 LoLPath .= "\"
 IniWrite, % LoLPath, % IniName, % LAL_sec, LoLPath
 GuiControl, Text, LoLPath, % LoLPath
-return
+goto, ShowGui
 
 ShowPass:
 Gui, Submit, NoHide
@@ -971,9 +983,9 @@ if !CheckCorrectEnter()
 WriteAccount(AccNumberGui)
 FileSelectFile, SC_path, S, %A_Desktop%\LoL Auto Login - %Login%.lnk, Выберите путь к LeagueClient.exe, Ярлыки (*.lnk)
 if !(SC_path)
-	return
+	goto, ShowGui
 FileCreateShortcut, %A_ScriptFullPath%, %SC_path%, %A_ScriptDir%, -acc %AccNumberGui%
-return
+goto, ShowGui
 
 #If WinActive("ahk_id" . hLAL) || WinMouseOver()
 F1::
