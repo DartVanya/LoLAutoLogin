@@ -4,14 +4,14 @@
     __New(hWnd, CloseDelay := 450, Margin := 0, AnimSpeed := 0, uId:=0x404) {
         this.timer := ObjBindMethod(this, "TryHide"), this.timerW11 := ObjBindMethod(this, "ShowPopUp", false, false)
         this.SelectGui(hWnd), this.uId := uId, this.CloseDelay := CloseDelay, this.AnimSpeed := AnimSpeed, this.Margin := Margin
-        TrayIcon_SetVersion4(A_ScriptHwnd, this.uId), TrayIcon_Set(A_ScriptHwnd, this.uId, "")
+        TrayIcon_Set(A_ScriptHwnd, this.uId), TrayIcon_SetVersion4(A_ScriptHwnd, this.uId)
         OnMessage(this.uId, this), OnMessage(this.uTaskbarRestart, this), OnMessage(this.WM_NCACTIVATE, this)
     }
     Disable(bDisable:=true) {
         timer := this.timer, this.POPUPCLOSE := false
         SetTimer, % timer, Off
-        OnMessage(this.uId, this, !bDisable), OnMessage(this.WM_NCACTIVATE, this, !bDisable), OnMessage(this.uTaskbarRestart, this, !bDisable) 
-        return ResetIcon && TrayIcon_SetVersion4(A_ScriptHwnd, this.uId, bDisable)
+        OnMessage(this.uId, this, !bDisable), OnMessage(this.WM_NCACTIVATE, this, !bDisable), OnMessage(this.uTaskbarRestart, this, !bDisable)
+        return TrayIcon_SetVersion4(A_ScriptHwnd, this.uId, bDisable)
     }
 	onShow(UserFN) {
 		this.ShowHandler := IsObject(UserFN) ? UserFN : Func(UserFN)

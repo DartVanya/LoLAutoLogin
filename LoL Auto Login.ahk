@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.1.3.1", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.1.3.2", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -521,7 +521,7 @@ AHK_NotifyTrayIcon(wParam, lParam, msg, hwnd) {
 				ToolTipFM.SetOffset(), ToolTipFM.Color(, 0xCC3300)
 				, ToolTipFM.Set("Аккаунт можно будет сменить только после окончания авторизации!"
 								, 3500, LAL . " [РЕЖИМ ЗАКРЫТИЯ RC]", TT_Icon)
-			else
+			else if (AccsCount)
 				Menu, AccsMenu, Show
 		}
 		case WM.LBUTTONUP:
