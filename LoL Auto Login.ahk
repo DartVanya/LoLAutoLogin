@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.1.3.2", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.1.3.3", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -102,7 +102,7 @@ global ProgName := LAL . " by " . Author
 	 , IniCopyright := "[" . LAL_sec . "] - " . ProgName . ". Version " . ProgVersion
 	 , SC_Name := LAL . " Config.lnk"
 	 , MainStart := false, CloseRC_flag, WaitForLC, Persistent_flag, SoftRestart, ForceRestart, gInterrupt := false
-	 , CheckForUpdate_flag, hLAL
+	 , CheckForUpdate_flag, hLAL, DisableCenteredMB := false
 LAL_hk := "Ctrl+Win+L", Config_hk := "Ctrl+Win+K", Interrupt_hk := "Ctrl+Win+I"
 , MenuSettings := "Настройки" A_Tab Config_hk, MenuExit := "Выход", MenuVersion := "Версия"
 , MenuCloseRC := "Закрывать Riot Client", MenuPersistent := "Не выходить после авторизации в игру", MenuAutorun := "Запускать вместе с Windows"
@@ -665,7 +665,7 @@ WM_CHAR(wParam, lParam){
 
 Move_MsgBox(wParam) {
 	static LAL_PID := DllCall("GetCurrentProcessId")
-	if (!MainStart && wParam = 1027) {
+	if (!DisableCenteredMB && !MainStart && wParam = 1027) {
 		DetectHiddenWindows, % (d := A_DetectHiddenWindows) ? "On" :
 		WinGetPos, lX, lY, lW, lH, ahk_id %hLAL%
 		WinGetPos,,, mW, mH, % "ahk_id " WinExist("ahk_class #32770 ahk_pid " LAL_PID)
@@ -1316,6 +1316,7 @@ CheckForUpdate() {
         return
 	if (UpdateRequest.status == 200) {  ; OK.
 		if (VerCompare(ProgVersion, NewVersion := UpdateRequest.responseText) < 0) {
+			DisableCenteredMB := true
 			MsgBox, 36, % ProgName,
 			(LTrim
 				Доступна новая версия LoL Auto Login.
@@ -1324,6 +1325,7 @@ CheckForUpdate() {
 				Текущая версия: %ProgVersion%
 				Доступная версия: %NewVersion%
 			)
+			DisableCenteredMB := false
 			IfMsgBox, Yes
 			{
 				FileMove, % A_ScriptName, % A_ScriptName ".old"
