@@ -4,7 +4,7 @@
     __New(hWnd, CloseDelay := 450, Margin := 0, AnimSpeed := 0, uId:=0x404) {
         this.timer := ObjBindMethod(this, "TryHide"), this.timerW11 := ObjBindMethod(this, "ShowPopUp", false, false)
         this.SelectGui(hWnd), this.uId := uId, this.CloseDelay := CloseDelay, this.AnimSpeed := AnimSpeed, this.Margin := Margin
-        TrayIcon_Set(A_ScriptHwnd, this.uId), TrayIcon_SetVersion4(A_ScriptHwnd, this.uId)
+        TrayIcon_Set(A_ScriptHwnd, this.uId, ""), TrayIcon_SetVersion4(A_ScriptHwnd, this.uId)
         OnMessage(this.uId, this), OnMessage(this.uTaskbarRestart, this), OnMessage(this.WM_NCACTIVATE, this)
     }
     Disable(bDisable:=true) {

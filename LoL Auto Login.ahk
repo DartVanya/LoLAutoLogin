@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.1.3.3", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.1.4.0", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -31,6 +31,7 @@ global ProgVersion := "5.1.3.3", Author := "Dart Vanya", LAL := "LoL Auto Login"
 #NoEnv
 #SingleInstance Off
 #NoTrayIcon
+#KeyHistory 0
 SetBatchLines, -1
 ListLines Off
 SetWorkingDir %A_ScriptDir%
@@ -65,7 +66,7 @@ for n, param in A_Args
 			AutoRun_flag := true
 		}
 }
-if GetKeyState("Ctrl")
+if (GetKeyState("Ctrl") || (!A_IsCompiled && InStr(DllCall("GetCommandLine", "Str"), "/Debug")))
 	ShowGuiFlag := true
 
 DetectHiddenWindows, On
@@ -103,7 +104,7 @@ global ProgName := LAL . " by " . Author
 	 , SC_Name := LAL . " Config.lnk"
 	 , MainStart := false, CloseRC_flag, WaitForLC, Persistent_flag, SoftRestart, ForceRestart, gInterrupt := false
 	 , CheckForUpdate_flag, hLAL, DisableCenteredMB := false
-LAL_hk := "Ctrl+Win+L", Config_hk := "Ctrl+Win+K", Interrupt_hk := "Ctrl+Win+I"
+LAL_hk := "Ctrl+Win+L", Config_hk := "Ctrl+Win+K", Interrupt_hk := LAL_hk
 , MenuSettings := "Настройки" A_Tab Config_hk, MenuExit := "Выход", MenuVersion := "Версия"
 , MenuCloseRC := "Закрывать Riot Client", MenuPersistent := "Не выходить после авторизации в игру", MenuAutorun := "Запускать вместе с Windows"
 , MenuFR := "Принудительный перезапуск клиента", MenuFRfast := "Быстрый", MenuFRfull := "Полный", MenuFRask := "Спрашивать"
@@ -206,14 +207,18 @@ if !(AutoRun_flag)
 	Goto, Main
 return
 
-TryMain:
-if (!MainStart && !WaitForLC && AccsCount)
-	Goto, Main
-goto, Global_Int
-return
-
-#If (!MainStart && !WaitForLC && AccsCount)
+#If
 ^#VK4C up:: 	; Ctrl+Win+L
+TryMain:
+if (MainStart || WaitForLC) {
+	gInterrupt := true
+	TryExit()
+	ToolTipFM.Color(, 0xCC3300), ToolTipFM.Set("Авторизация прервана! Возврат к фоновому режиму.", 3000, LAL, TT_Icon)
+	return
+}
+if (!MainStart && !WaitForLC && AccsCount)
+	SetTimer, Main, -1
+return
 Main:
 Gui, +OwnDialogs
 MainStart := true, SoftRestart := false
@@ -460,14 +465,6 @@ if GuiAsked {
 }
 return
 
-#If (MainStart || WaitForLC)
-#^VK49::
-Global_Int:
-gInterrupt := true
-TryExit()
-ToolTipFM.Color(, 0xCC3300), ToolTipFM.Set("Авторизация прервана! Возврат к фоновому режиму.", 3000, LAL, TT_Icon)
-return
-
 SoftRestart(ByRef LChWND) {
 	;WinGet, LC_MinMax, MinMax, ahk_id %LChWND%
 	;if (LC_MinMax = -1)
@@ -515,7 +512,7 @@ FullRestart(ByRef LChWND, FromSleep:=false) {
 AHK_NotifyTrayIcon(wParam, lParam, msg, hwnd) {
 	switch (lParam)
 	{
-		case WM.MBUTTONUP:
+		case WM.MBUTTONUP:	; Pre Win11 only
 		{
 			if (WaitForLC)
 				ToolTipFM.SetOffset(), ToolTipFM.Color(, 0xCC3300)
@@ -527,7 +524,7 @@ AHK_NotifyTrayIcon(wParam, lParam, msg, hwnd) {
 		case WM.LBUTTONUP:
 			SetTimer, ShowGui, -1
 		case WM.LBUTTONDBLCLK:
-			Gui, Hide
+			SetTimer, HideGuiDelayed, -1
 	}
 	if (ForceRestart & 4 && msg = 0x218 && wParam = 0x7 && (LChWND := WinExist("ahk_exe LeagueClientUx.exe"))) {
 		timer := Func("FullRestart").Bind(LChWND, true)
@@ -535,6 +532,9 @@ AHK_NotifyTrayIcon(wParam, lParam, msg, hwnd) {
 	}
 }
 
+HideGuiDelayed:
+Gui, Hide
+return
 
 #If
 ^#VK4B up:: 	; Ctrl+Win+K
@@ -546,7 +546,8 @@ if (WaitForLC && !ToolTipFM.isOn()) {
 }
 else if (WaitForLC)
 	return
-ToolTipFM.Off()
+if (!gInterrupt)
+	ToolTipFM.Off()
 SetIniCopyright()
 GuiControl, ChooseString, AccNumberGUI, % AccNumber
 ReadAccount()
