@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.1.4.0", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.1.5.0", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -185,6 +185,7 @@ InitGui()
 OnMessage(0x404, "AHK_NotifyTrayIcon")
 OnMessage(0x218, "AHK_NotifyTrayIcon")
 OnMessage(0x44, "Move_MsgBox")
+OnMessage(0x7E, "WM_DISPLAYCHANGE")
 
 SetIniCopyright()
 
@@ -675,6 +676,13 @@ Move_MsgBox(wParam) {
 	}
 }
 
+WM_DISPLAYCHANGE() {
+	DetectHiddenWindows, On
+	WinSetTitle, ahk_id %A_ScriptHwnd%,, LAL_reload
+	Run % (OldCmdLine := DllCall("GetCommandLine", "Str")) ~= "\s[/-//]autorun" ? OldCmdLine : (OldCmdLine " -autorun")
+	ExitApp
+}
+
 CloseRC(){
 	global
 	IniWrite, % CloseRC_flag := !CloseRC_flag, % IniName, % LAL_sec, CloseRC
@@ -822,6 +830,8 @@ WheelOnOff(state) {
 
 ReadAccount() {
 	global
+	if (NewAcc)
+		return
 	Gui, Submit, NoHide
 	if !(AccsCount) {
 		GuiControl, , AccNumberGUI, |
@@ -859,12 +869,10 @@ WriteAccount(ByRef AccN) {
 
 CheckCorrectEnter() {
 	global
-	if !(Login) {
-		MsgBox, 8240, % ProgName, Вы не ввели логин!
-		return false
-	}
-	if !(Password) {
-		MsgBox, 8240, % ProgName, Вы не ввели пароль!
+	if (!Login || !Password) {
+		TrayPopUp.SuspendGui()
+		MsgBox, 8240, % ProgName, % "Вы не ввели " (!Login ? "логин" : "пароль") "!"
+		TrayPopUp.SuspendGui(false)
 		return false
 	}
 	return true
@@ -946,7 +954,9 @@ EnterPass:
 Gui, +OwnDialogs
 Gui, Submit, NoHide
 if !LoLPath {
+	TrayPopUp.SuspendGui()
 	MsgBox, 8240, % ProgName, Вы не указали путь к игре!
+	TrayPopUp.SuspendGui(false)
 	return
 }
 if !CheckCorrectEnter()

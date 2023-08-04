@@ -4,7 +4,7 @@
     __New(hWnd, CloseDelay := 450, Margin := 0, AnimSpeed := 0, uId:=0x404) {
         this.timer := ObjBindMethod(this, "TryHide"), this.timerW11 := ObjBindMethod(this, "ShowPopUp", false, false)
         this.SelectGui(hWnd), this.uId := uId, this.CloseDelay := CloseDelay, this.AnimSpeed := AnimSpeed, this.Margin := Margin
-        TrayIcon_Set(A_ScriptHwnd, this.uId, ""), TrayIcon_SetVersion4(A_ScriptHwnd, this.uId)
+        TrayIcon_Set(A_ScriptHwnd, this.uId, A_Space), TrayIcon_SetVersion4(A_ScriptHwnd, this.uId)
         OnMessage(this.uId, this), OnMessage(this.uTaskbarRestart, this), OnMessage(this.WM_NCACTIVATE, this)
     }
     Disable(bDisable:=true) {
@@ -59,7 +59,7 @@
             return DllCall("SendMessage", "UPtr", hwnd, "UInt", msg, "UPtr", (lparam >> 16) & 0xFFFF, "Ptr", lparam & 0xFFFF)
         }
         case this.WM_NCACTIVATE:
-            if (hwnd = this.HWND && !wParam) {
+            if (!this.GuiOff && hwnd = this.HWND && !wParam) {
                 this.POPUPCLOSE := true, timer := this.timer
                 SetTimer, % timer, -100
             }
@@ -122,7 +122,7 @@
         }
     }
     TryHide() {
-        if (this.POPUPCLOSE && !WinActive("ahk_id" this.HWND) && !this.WinMouseOver()) {
+        if (!this.GuiOff && this.POPUPCLOSE && !WinActive("ahk_id" this.HWND) && !this.WinMouseOver()) {
             SetTimer, , Off
             ( this.HideHandler && this.HideHandler() )
             if !this.AnimSpeed
