@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.1.5.0", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.1.5.1", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -330,8 +330,11 @@ switch SoftRestart
 }
 While !WinExist("ahk_class RCLIENT ahk_exe RiotClientUx.exe") {
 	if WinExist("ahk_class ScreenManagerWindowClass ahk_exe RiotClientServices.exe") {
-		MainExit(), ToolTipFM.Color(, 0x3030A0), ToolTipFM.Set("Нет подключения к интернету, авторизация прервана!", 3500, LAL, TT_Icon)
-		return
+		WinGetPos,,, SM_w, SM_h
+		if (SM_w = 392 && SM_h = 488) {
+			MainExit(), ToolTipFM.Color(, 0x3030A0), ToolTipFM.Set("Нет подключения к интернету, авторизация прервана!", 3500, LAL, TT_Icon)
+			return
+		}
 	}
 	if gInterrupt {
 		gInterrupt := MainStart := false
