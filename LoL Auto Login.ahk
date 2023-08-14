@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.1.5.1", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.1.5.2", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -358,7 +358,7 @@ WinGetPos, , , RCw, RCh, % "ahk_id" . RC.HWND
 RC.Coords.X := Round(RCw * .043), RC.Coords.Y := Round(RCh * .29)
 , RC.Coords.X_play := Round(RCw * .14), RC.Coords.Y_play := Round(RCh * .91)
 , RC.Coords.Y_err := Round(RCh * .337), RC.Coords.Y_load := Round(RCh * .362)
-ToolTipFM.Off()
+ToolTipFM.Off(), MinWait := 0
 
 While WinExist("ahk_id" . RC.HWND)
 {
@@ -387,6 +387,8 @@ While WinExist("ahk_id" . RC.HWND)
 	}
 	if ((RC.loginColor_load = 0xEDEDED || RC.loginColor_load = 0xE7E7E7)
 		&& ((ErrCoords := (RC.loginColor_err > 0xF20000 && RC.loginColor_err < 0xF40000)) || RC.loginColor > 0xE00000)) {
+		if (MinWait++ < 2)
+			goto, ScanNext	
 		Critical
 		Process, Exist, LeagueClient.exe
 		if (ErrorLevel) {
@@ -405,6 +407,8 @@ While WinExist("ahk_id" . RC.HWND)
 		BlockInput, Off
 		break
 	}
+	else
+		MinWait := 0
 	ScanNext:
 	Gdip_DisposeImage(pBitmap)
 	Sleep, 50
