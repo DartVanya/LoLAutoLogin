@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.1.5.2", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.1.5.3", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -385,8 +385,8 @@ While WinExist("ahk_id" . RC.HWND)
 		ControlClick, % "x" . RC.Coords.X_play . " y" . RC.Coords.Y_play, % "ahk_id" . RC.HWND
 		break
 	}
-	if ((RC.loginColor_load = 0xEDEDED || RC.loginColor_load = 0xE7E7E7)
-		&& ((ErrCoords := (RC.loginColor_err > 0xF20000 && RC.loginColor_err < 0xF40000)) || RC.loginColor > 0xE00000)) {
+	if (((RC.loginColor_load = 0xEDEDED || RC.loginColor_load = 0xE7E7E7) && RC.loginColor > 0xE00000)
+		|| (ErrCoords := RC.loginColor_err > 0xF20000 && RC.loginColor_err < 0xF40000)) {
 		if (MinWait++ < 2)
 			goto, ScanNext	
 		Critical
@@ -501,7 +501,8 @@ SoftRestart(ByRef LChWND) {
 }
 
 FullRestart(ByRef LChWND, FromSleep:=false) {
-	ToolTipFM.Set("Выполняется перезапуск клиента.`nОжидание закрытия процессов Riot Client…", 4000, LAL, TT_Icon)
+	ToolTipFM.Set("Выполняется перезапуск клиента" . (FromSleep ? " после выхода из спящего режима" : "") 
+					. ".`nОжидание закрытия процессов Riot Client…", 4000, LAL, TT_Icon)
 	if (FromSleep) {
 		Kill_RC_LC()
 		SetTimer, main, -1
@@ -534,8 +535,8 @@ AHK_NotifyTrayIcon(wParam, lParam, msg, hwnd) {
 		case WM.LBUTTONDBLCLK:
 			SetTimer, HideGuiDelayed, -1
 	}
-	if (ForceRestart & 4 && msg = 0x218 && wParam = 0x7 && (LChWND := WinExist("ahk_exe LeagueClientUx.exe"))) {
-		timer := Func("FullRestart").Bind(LChWND, true)
+	if (!MainStart && ForceRestart & 4 && msg = 0x218 && wParam = 0x7 && (LChWND := WinExist("ahk_exe LeagueClientUx.exe"))) {
+		timer := Func("FullRestart").Bind(LChWND, true), MainStart := true
 		SetTimer, % timer, -2000
 	}
 }
