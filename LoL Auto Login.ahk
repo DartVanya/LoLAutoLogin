@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.5.0.1", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.5.0.2", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -109,7 +109,7 @@ global ProgName := LAL . " by " . Author
 	 , CheckForUpdate_flag, hLAL, DisableCenteredMB := false, LoLPath, LAL_debug
 	 , AutoAccept, AA_WaitForGame := false, AA_Once := 1, AA_Always := 2, AA_EnableNotify := 4, AA_mailto
 	 , AA_mail := "lolautologin.aa@gmail.com", AA_AppPswd := "lody xypa wsus pnmj", AA_Server := "smtp.gmail.com", AA_Port := 465
-	 , AA_ScanDelay := 250
+	 , AA_ScanDelay := 200, AA_SolutionWaitDelay := 100
 LAL_hk := "Ctrl+Win+L", Config_hk := "Ctrl+Win+K", Interrupt_hk := LAL_hk
 , MenuSettings := "Настройки" A_Tab Config_hk, MenuExit := "Выход", MenuVersion := "Версия"
 , MenuCloseRC := "Закрывать Riot Client", MenuPersistent := "Не выходить после авторизации в игру", MenuAutorun := "Запускать вместе с Windows"
@@ -599,17 +599,15 @@ AA_HK_handler(bOn) {
 }
 
 WaitForGameLoop() {
-	static LC_HWND, NewLC_HWND, LC_X1, LC_X2, LC_Y, LC_X_accept
+	static LC_HWND
 	if (!AA_WaitForGame) {
 		SetTimer, , Off
 		return
 	}
-	if ((NewLC_HWND := WinExist("ahk_class RCLIENT ahk_exe LeagueClientUx.exe")) && LC_HWND != NewLC_HWND) {
-		WinGetPos, , , LCw, LCh, % "ahk_id " LC_HWND := NewLC_HWND
-		LC_X1 := Round(LCw * .444), LC_X2 := Round(LCw * .553), LC_X_accept := Round(LCw * .5), LC_Y := Round(LCh * .772)
-	}
-	if (!NewLC_HWND || !WinActive("ahk_id " LC_HWND))
+	if ((!LC_HWND && LC_HWND := WinExist("ahk_class RCLIENT ahk_exe LeagueClientUx.exe")) || !(LC_HWND := WinActive("ahk_id " LC_HWND)))
 		return
+	WinGetPos, , , LCw, LCh, % "ahk_id " LC_HWND
+	LC_X1 := Round(LCw * .444), LC_X2 := Round(LCw * .553), LC_X_accept := Round(LCw * .5), LC_Y := Round(LCh * .772)
 	;pBitmap := Gdip_BitmapFromHWND(LC_HWND)
 	PixelGetColor, c1, % LC_X1, % LC_Y, RGB
 	PixelGetColor, c2, % LC_X2, % LC_Y, RGB
@@ -623,12 +621,17 @@ WaitForGameLoop() {
 			if !WinActive("ahk_id " LC_HWND)
 				break
 		}
-		SetTimer, WaitForSolution, 100
+		SetTimer, WaitForSolution, %AA_SolutionWaitDelay%
 	} 
 	;Gdip_DisposeImage(pBitmap)
 }
 
 WaitForSolution() {
+	static cur_wait := 0, max_wait := 15000
+	if (cur_wait >= max_wait) {
+		SetTimer, , Off
+		return
+	}
 	;GDIP("Startup"), SavePicture(hWnd_to_hBmp(LC_HWND, false), A_Temp "\LAL_AA_scr.png"), GDIP("Shutdown")
 	Process, Exist, League of Legends.exe
 	if (SolutionPID := ErrorLevel) {
@@ -640,6 +643,7 @@ WaitForSolution() {
 				Email("""LAL AutoAccept"" <" AA_mail ">", AA_mailto, "Матч принят", GenerateMailBody(SolutionPID), AA_mail
 					, AA_AppPswd, AA_Server, AA_Port) ;, A_Temp "\LAL_AA_scr.png")
 	}
+	cur_wait += AA_SolutionWaitDelay
 }
 
 ^#VK4B up:: 	; Ctrl+Win+K
