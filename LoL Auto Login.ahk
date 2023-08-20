@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.1.5.3", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.5.0.0", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -39,6 +39,7 @@ SendMode Input
 SetKeyDelay, , 35
 SetControlDelay, -1
 SetWinDelay, -1
+CoordMode, Mouse, Window
 #Include <Gdip_All>
 #Include <Crypt>
 #Include <CryptConst>
@@ -49,6 +50,8 @@ SetWinDelay, -1
 #Include <ToolTipFM>
 #Include <TrayPopUp>
 #Include <IWinHttpRequestEvents>
+#Include <CDO_Message>
+;#Include <ScreenshotUtils>
 
 for n, param in A_Args
 {
@@ -66,7 +69,7 @@ for n, param in A_Args
 			AutoRun_flag := true
 		}
 }
-if (GetKeyState("Ctrl") || (!A_IsCompiled && InStr(DllCall("GetCommandLine", "Str"), "/Debug")))
+if (GetKeyState("Ctrl") || LAL_debug := (!A_IsCompiled && InStr(DllCall("GetCommandLine", "Str"), "/Debug")))
 	ShowGuiFlag := true
 
 DetectHiddenWindows, On
@@ -103,13 +106,19 @@ global ProgName := LAL . " by " . Author
 	 , IniCopyright := "[" . LAL_sec . "] - " . ProgName . ". Version " . ProgVersion
 	 , SC_Name := LAL . " Config.lnk"
 	 , MainStart := false, CloseRC_flag, WaitForLC, Persistent_flag, SoftRestart, ForceRestart, gInterrupt := false
-	 , CheckForUpdate_flag, hLAL, DisableCenteredMB := false
+	 , CheckForUpdate_flag, hLAL, DisableCenteredMB := false, LoLPath, LAL_debug
+	 , AutoAccept, AA_WaitForGame := false, AA_Once := 1, AA_Always := 2, AA_EnableNotify := 4, AA_mailto
+	 , AA_mail := "lolautologin.aa@gmail.com", AA_AppPswd := "lody xypa wsus pnmj", AA_Server := "smtp.gmail.com", AA_Port := 465
+	 , AA_ScanDelay := 250
 LAL_hk := "Ctrl+Win+L", Config_hk := "Ctrl+Win+K", Interrupt_hk := LAL_hk
 , MenuSettings := "Настройки" A_Tab Config_hk, MenuExit := "Выход", MenuVersion := "Версия"
 , MenuCloseRC := "Закрывать Riot Client", MenuPersistent := "Не выходить после авторизации в игру", MenuAutorun := "Запускать вместе с Windows"
 , MenuFR := "Принудительный перезапуск клиента", MenuFRfast := "Быстрый", MenuFRfull := "Полный", MenuFRask := "Спрашивать"
 , MenuFRsleep := "При выходе из спящего режима", MenuInterrupt := "Прервать авторизацию" A_Tab Interrupt_hk
 , MenuUpdateCheck := "Проверять наличие обновлений"
+, MenuAA_Once := "Включить на один раз", MenuAA_Always := "Включить постоянно", MenuAA_Notify := "Уведомление при приёме матча"
+, MenuAA_mailto := "Изменить Email для уведомлений...", AA_HK_Once := "Ctrl+Win+A", AA_HK_Always := "Ctrl+Shift+Win+A"
+
 Locales := "ar_AE|cs_CZ|de_DE|el_GR|en_US|es_MX|es_ES|fr_FR|hu_HU|id_ID|it_IT|ja_JP|ms_MY|pl_PL|pt_BR|ro_RO|ru_RU|th_TH|tr_TR|vi_VN|zh_TW"
 ;RegionsArr := {BR: "BR", EUNE: "EUNE", EUW: "EUW", JP: "JP", LAN: "LA1", LAS: "LA2", NA: "NA", OCE: "OC1", RU: "ru_RU", TR: "TR"}
 FirstRun := true
@@ -144,6 +153,26 @@ Menu, Tray, Add, % "by " . Author . A_Tab . MenuVersion . ": " . ProgVersion, St
 Menu, Tray, Disable, 2&
 UpdateAccsMenu(-1)
 Menu, Tray, Add
+IniRead, AutoAccept, % IniName, % LAL_sec, AutoAccept, % false
+IniRead, AA_mailto, % IniName, % LAL_sec, AA_mailto, % false
+if (!AA_mailto)
+	IniWrite, % AutoAccept &= ~AA_EnableNotify, % IniName, % LAL_sec, AutoAccept
+Menu, AutoAccept, Add, %MenuAA_Once%%A_Tab%%AA_HK_Once%, AA_Handler
+Menu, AutoAccept, Add, %MenuAA_Always%%A_Tab%%AA_HK_Always%, AA_Handler
+Menu, AutoAccept, Add
+Menu, AutoAccept, Add, %MenuAA_Notify%, AA_Handler
+Menu, AutoAccept, Add, %MenuAA_mailto%, AA_Handler
+Menu, AutoAccept, Disable, 5&
+if (AutoAccept & AA_Once || AutoAccept & AA_Always) {
+	SysMenu.CheckRadio(AutoAccept & AA_Once ? 1 : 2, "AutoAccept", true, 1, 2), AA_WaitForGame := true
+	SetTimer, WaitForGameLoop, %AA_ScanDelay%
+}
+if (AutoAccept & AA_EnableNotify) {
+	Menu, AutoAccept, Check, 4&
+	Menu, AutoAccept, Enable, 5&
+}
+Menu, Tray, Add, AutoAccept, :AutoAccept
+Menu, Tray, Add
 Menu, Tray, Add, %MenuSettings%, ShowGui
 Menu, ForceRestart, Add, %MenuFRfast%, ForceRestartHandler
 Menu, ForceRestart, Add, %MenuFRfull%, ForceRestartHandler
@@ -169,10 +198,10 @@ Autorun := new Autorun(MenuAutorun, "-autorun", "AR_SysMenuCheck")
 Menu, Tray, Add, %MenuUpdateCheck%, ToggleUpdateCheck
 Menu, Tray, Add, %MenuExit%, AppExit
 IniRead, CloseRC_flag, % IniName, % LAL_sec, CloseRC, % false
-Menu, Tray, % (CloseRC_flag ? "":"Un") "Check", 7&
-Menu, Tray, % (Persistent_flag ? "":"Un") "Check", 8&
+Menu, Tray, % (CloseRC_flag ? "":"Un") "Check", 9&
+Menu, Tray, % (Persistent_flag ? "":"Un") "Check", 10&
 IniRead, CheckForUpdate_flag, % IniName, % LAL_sec, CheckForUpdate, % true
-Menu, Tray, % (CheckForUpdate_flag ? "":"Un") "Check", 10&
+Menu, Tray, % (CheckForUpdate_flag ? "":"Un") "Check", 12&
 Menu, Tray, Icon
 
 ;global TT_Icon := TrayIcon_GetInfo(A_ScriptHwnd, 0x404).hicon
@@ -420,7 +449,7 @@ WaitForLC := CloseRC_flag
 if (CloseRC_flag) {
 	TrayPopUp.SuspendGui(),  ToolTipFM.SetOffset(, -40)
 	, TrayPopUp.onShow("RC_tt"), TrayPopUp.onHide(Func("RC_tt").Bind(false))
-	Menu, Tray, Disable, 5&
+	Menu, Tray, Disable, 7&
 	Menu, Tray, Disable, 3&
 }
 if (Persistent_flag && !CloseRC_flag) {
@@ -545,7 +574,74 @@ HideGuiDelayed:
 Gui, Hide
 return
 
-#If
+#If 
+^#VK41::	; Ctrl+Win+A
+AutoAccept &= ~AA_Always, AutoAccept ^= AA_Once, AA_HK_handler(AutoAccept & AA_Once)
+, SysMenu.AutoAccept.CheckRadio(AutoAccept & AA_Once ? 1 : -1, 1, 2)
+, SysMenu.CheckRadio(AutoAccept & AA_Once ? 1 : -1, "AutoAccept", true, 1, 2)
+IniWrite, % AutoAccept, % IniName, % LAL_sec, AutoAccept
+return
+^+#VK41::	; Ctrl+Shift+Win+A
+AutoAccept &= ~AA_Once, AutoAccept ^= AA_Always, AA_HK_handler(AutoAccept & AA_Always)
+, SysMenu.AutoAccept.CheckRadio(AutoAccept & AA_Always ? 2 : -1, 1, 2)
+, SysMenu.CheckRadio(AutoAccept & AA_Always ? 2 : -1, "AutoAccept", true, 1, 2)
+IniWrite, % AutoAccept, % IniName, % LAL_sec, AutoAccept
+return
+
+AA_HK_handler(bOn) {
+	if (!bOn)
+		AA_WaitForGame := false, ToolTipFM.Color(), ToolTipFM.Set("Авто-принятие отключено.", 2500, LAL . " [AutoAccept Off]", TT_Icon)
+	else {
+		ToolTipFM.Color(0x604619, 0xFFFFFF), ToolTipFM.Set("Ожидание нахождения матча...", 2500, LAL . " [AutoAccept On - " (AutoAccept & AA_Once ? "Once" : "Always") "]", TT_Icon)
+		AA_WaitForGame := true
+		SetTimer, WaitForGameLoop, %AA_ScanDelay%
+	}
+}
+
+WaitForGameLoop() {
+	static LC_HWND, NewLC_HWND, LC_X1, LC_X2, LC_Y
+	if (!AA_WaitForGame) {
+		SetTimer, , Off
+		return
+	}
+	if ((NewLC_HWND := WinExist("ahk_class RCLIENT ahk_exe LeagueClientUx.exe")) && LC_HWND != NewLC_HWND) {
+		WinGetPos, , , LCw, LCh, % "ahk_id " LC_HWND := NewLC_HWND
+		LC_X1 := Round(LCw * .444), LC_X2 := Round(LCw * .553), LC_X_accept := Round(LCw * .5), LC_Y := Round(LCh * .772)
+	}
+	if (!NewLC_HWND || !WinActive("ahk_id " LC_HWND))
+		return
+	;pBitmap := Gdip_BitmapFromHWND(LC_HWND)
+	PixelGetColor, c1, % LC_X1, % LC_Y, RGB
+	PixelGetColor, c2, % LC_X2, % LC_Y, RGB
+	;if ((col1 := Gdip_GetPixel(pBitmap, LC_X1, LC_Y) & 0x00FFFFFF) = 0x1E252A 
+	;	&& (col2 := Gdip_GetPixel(pBitmap, LC_X2, LC_Y) & 0x00FFFFFF) = 0x1E252A) {
+	if (c1 = 0x1E252A && c2 = 0x1E252A) {
+		SetTimer, WaitForSolution, Off
+		Loop, 3 {
+			ControlClick, % "x" LC_X_accept " y" LC_Y, % "ahk_id " LC_HWND
+			Sleep, 50
+			if !WinActive("ahk_id " LC_HWND)
+				break
+		}
+		SetTimer, WaitForSolution, 100
+	} 
+	;Gdip_DisposeImage(pBitmap)
+}
+
+WaitForSolution() {
+	;GDIP("Startup"), SavePicture(hWnd_to_hBmp(LC_HWND, false), A_Temp "\LAL_AA_scr.png"), GDIP("Shutdown")
+	Process, Exist, League of Legends.exe
+	if (SolutionPID := ErrorLevel) {
+		SetTimer, , Off
+		if (AutoAccept & AA_Once)
+			AA_WaitForGame := false, AA_handler("", 1)
+		if (AutoAccept & AA_EnableNotify)
+			try
+				Email("""LAL AutoAccept"" <" AA_mail ">", AA_mailto, "Матч принят", GenerateMailBody(SolutionPID), AA_mail
+					, AA_AppPswd, AA_Server, AA_Port) ;, A_Temp "\LAL_AA_scr.png")
+	}
+}
+
 ^#VK4B up:: 	; Ctrl+Win+K
 ShowGui:
 if (WaitForLC && !ToolTipFM.isOn()) {
@@ -621,6 +717,13 @@ InitGui() {
 		MF_SEPARATOR
 		"%LAL%	%MenuVersion%: %ProgVersion%",		MF_GRAYED
 		MF_SEPARATOR
+		"AutoAccept",								:AutoAccept
+				AutoAccept,		%MenuAA_Once%%A_Tab%%AA_HK_Once%,		AA_handler
+				AutoAccept,		%MenuAA_Always%%A_Tab%%AA_HK_Always%,	AA_handler
+				AutoAccept,		MF_SEPARATOR
+				AutoAccept,		%MenuAA_Notify%, 						AA_handler
+				AutoAccept,		%MenuAA_mailto%, 						AA_handler, MF_DISABLED
+		MF_SEPARATOR
 		"%MenuFR%",									:ForceRestart
 				ForceRestart,	%MenuFRfast%,		ForceRestartHandler
 				ForceRestart,	%MenuFRfull%,		ForceRestartHandler
@@ -654,6 +757,14 @@ InitGui() {
 	}
 	if (ForceRestart & 4)
 		SysMenu.ForceRestart.Check(5)
+
+	if (AutoAccept & AA_Once)
+		SysMenu.AutoAccept.CheckRadio(1, 1, 2)
+	else if (AutoAccept & AA_Always)
+		SysMenu.AutoAccept.CheckRadio(2, 1, 2)
+	if (AutoAccept & AA_EnableNotify)
+		SysMenu.AutoAccept.Check(4), SysMenu.AutoAccept.Enable(5)
+
 	ReadAccount()
 	Gui, Show, Hide, % ProgName
 	TrayPopUp := new TrayPopUp(hLAL)
@@ -664,6 +775,53 @@ InitGui() {
 	OnMessage(0x102, "WM_CHAR")
 	Gui, gHelp:New, +hwndhHelp, О программе %LAL%
 	return true
+}
+
+AA_handler(ItemName, ItemPos) {
+	switch ItemPos {
+		case 1:
+			AutoAccept &= ~AA_Always, AutoAccept ^= AA_Once
+			, SysMenu.AutoAccept.CheckRadio(AutoAccept & AA_Once ? 1 : -1, 1, 2)
+			, SysMenu.CheckRadio(AutoAccept & AA_Once ? 1 : -1, "AutoAccept", true, 1, 2)
+		case 2:
+			AutoAccept &= ~AA_Once, AutoAccept ^= AA_Always
+			, SysMenu.AutoAccept.CheckRadio(AutoAccept & AA_Always ? 2 : -1, 1, 2)
+			, SysMenu.CheckRadio(AutoAccept & AA_Always ? 2 : -1, "AutoAccept", true, 1, 2)
+		case 4:
+			if (!AA_mailto)
+				AA_EnterEmail()
+			if (AA_mailto) {
+				AutoAccept ^= AA_EnableNotify, SysMenu.AutoAccept.ToggleCheck(4), SysMenu.AutoAccept.ToggleEnable(5)
+				Menu, AutoAccept, ToggleCheck, 4&
+				Menu, AutoAccept, ToggleEnable, 5&
+			}
+				
+		case 5:
+			AA_EnterEmail()
+			return
+	}
+	if (AutoAccept & AA_Once || AutoAccept & AA_Always) {
+		AA_WaitForGame := true
+		SetTimer, WaitForGameLoop, %AA_ScanDelay%
+	}
+	else
+		AA_WaitForGame := false
+	IniWrite, % AutoAccept, % IniName, % LAL_sec, AutoAccept
+}
+
+AA_EnterEmail() {
+	SetTimer, InputBox_DisableResize, -1
+	InputBox new_AA_mailto, %LAL% - AutoAccept
+		, % "Укажите электронную почту, на которую будет выслано уведомление при приёме матча:"
+		, , 310, 132,,, Locale,, % AA_mailto
+	if (new_AA_mailto)
+		IniWrite, % AA_mailto := new_AA_mailto, % IniName, % LAL_sec, AA_mailto
+}
+
+InputBox_DisableResize() {
+	WinWait, %LAL% - AutoAccept ahk_class #32770,, 3
+	if (!ErrorLevel)
+		WinSet, Style, -0x40000, %LAL% - AutoAccept ahk_class #32770
 }
 
 WM_CHAR(wParam, lParam){
@@ -694,14 +852,14 @@ WM_DISPLAYCHANGE() {
 CloseRC(){
 	global
 	IniWrite, % CloseRC_flag := !CloseRC_flag, % IniName, % LAL_sec, CloseRC
-	Menu, Tray, ToggleCheck, 7&
+	Menu, Tray, ToggleCheck, 9&
 	SysMenu.ToggleCheck("CloseRC", , true)
 }
 
 LAL_Persistent(){
 	global
 	IniWrite, % Persistent_flag := !Persistent_flag, % IniName, % LAL_sec, Persistent
-	Menu, Tray, ToggleCheck, 8&
+	Menu, Tray, ToggleCheck, 10&
 	Menu, Tray, ToggleEnable, 1&
 	SysMenu.ToggleCheck("LAL_Persistent", , true)
 }
@@ -713,7 +871,7 @@ AR_SysMenuCheck(){
 
 ToggleUpdateCheck() {
 	IniWrite, % CheckForUpdate_flag := !CheckForUpdate_flag, % IniName, % LAL_sec, CheckForUpdate
-	Menu, Tray, ToggleCheck, 10&
+	Menu, Tray, ToggleCheck, 12&
 	SysMenu.ToggleCheck("ToggleUpdateCheck", , true)
 }
 
@@ -1217,7 +1375,7 @@ TryExit() {
 	if(!Persistent_flag)
 		ExitApp
 	Menu, Tray, Rename, 1&, % LAL . A_Tab . LAL_hk
-	Menu, Tray, Enable, 5&
+	Menu, Tray, Enable, 7&
 	Menu, Tray, Enable, 3&
 	TrayPopUp.SuspendGui(false), ToolTipFM.SetOffset()
 	TrayPopUp.onShow("RereadAccount"), TrayPopUp.onHide("HidePass")
@@ -1381,18 +1539,54 @@ ReceiveUpdate(pData, length, moreDataAvailable) {
 	}
 }
 
-GetParentProcess(PID) {
-	static function := DllCall("GetProcAddress", "ptr", DllCall("GetModuleHandle", "str", "kernel32.dll", "ptr"), "astr", "Process32Next" (A_IsUnicode ? "W" : ""), "ptr")
-	if !(h := DllCall("CreateToolhelp32Snapshot", "uint", 2, "uint", 0))
-		return
-	VarSetCapacity(pEntry, sz := (A_PtrSize = 8 ? 48 : 36)+(A_IsUnicode ? 520 : 260))
-	Numput(sz, pEntry, 0, "uint")
-	DllCall("Process32First" (A_IsUnicode ? "W" : ""), "ptr", h, "ptr", &pEntry)
-	loop
-	{
-		if (PID = NumGet(pEntry, 8, "uint") || !DllCall(function, "ptr", h, "ptr", &pEntry))
-			break
+GenerateMailBody(GamePID) {
+	; WinHTTP := ComObjCreate("MSXML2.ServerXMLHTTP")
+	; WinHTTP.Open("GET", "https://127.0.0.1:2999/liveclientdata/activeplayername", false)
+	; WinHTTP.setOption(2, 0x3300)    ; SXH_SERVER_CERT_IGNORE_ALL_SERVER_ERRORS
+	; try
+	; 	WinHTTP.Send(), SummonerName := Trim(WinHTTP.responseText, """")
+
+	Loop, Files, %LoLPath%\Logs\LeagueClient Logs\*LeagueClient.log
+    	LastLClog := A_LoopFileName
+	if (LastLClog) {
+		FileRead, LastLClog, %LoLPath%\Logs\LeagueClient Logs\%LastLClog%
+		RegExMatch(LastLClog, "iO)""displayName"":""([^""]*)", matches), SummonerName := matches.Value(1)
 	}
-	DllCall("CloseHandle", "ptr", h)
-	return Numget(pEntry, 16+2*A_PtrSize, "uint")
+
+	SolutionArgs := ParseSolutionArgs(GamePID)
+
+	StringLower, Region, % SolutionArgs.Region
+	return SummonerName " - " SolutionArgs.Product 
+			. (SolutionArgs.Product = "LoL" ? "`nhttps://www.op.gg/summoners/" Region "/" StrReplace(SummonerName, A_Space, "+") "/ingame" : "")
+}
+
+ParseSolutionArgs(GamePID) {
+	static wmi := ComObjGet("winmgmts:")
+	queryEnum := wmi.ExecQuery("Select * from Win32_Process where ProcessId=" . GamePID)._NewEnum()
+	if queryEnum[proc] {
+		SolutionArgs := {}
+		for k,arg in Args(proc.CommandLine, 1) {
+			if (SubStr(arg, 1, 1) = "-") {
+				if (EqPos := InStr(arg, "="))
+					SolutionArgs[SubStr(arg, 2, EqPos-2)] := SubStr(arg, EqPos+1)
+				else
+					SolutionArgs[SubStr(arg, 2)] := ""
+			}
+			else
+				SolutionArgs.ServerString := arg
+		}
+	}
+	return SolutionArgs ? SolutionArgs : false
+}
+
+Args( CmdLine := "", Skip := 0 ) {     ; By SKAN,  http://goo.gl/JfMNpN,  CD:23/Aug/2014 | MD:24/Aug/2014
+	Local pArgs := 0, nArgs := 0, A := []
+
+	pArgs := DllCall( "Shell32.dll\CommandLineToArgvW", "WStr",CmdLine, "Int*",nArgs, "Ptr" )
+
+	Loop % ( nArgs )
+		If ( A_Index > Skip )
+			A[ A_Index - Skip ] := StrGet( NumGet( ( A_Index - 1 ) * A_PtrSize + pArgs ), "UTF-16" )
+
+	Return A,   A[0] := nArgs - Skip,   DllCall( "LocalFree", "Ptr",pArgs )
 }
