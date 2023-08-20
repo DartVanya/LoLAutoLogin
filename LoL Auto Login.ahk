@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.5.0.0", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.5.0.1", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -599,7 +599,7 @@ AA_HK_handler(bOn) {
 }
 
 WaitForGameLoop() {
-	static LC_HWND, NewLC_HWND, LC_X1, LC_X2, LC_Y
+	static LC_HWND, NewLC_HWND, LC_X1, LC_X2, LC_Y, LC_X_accept
 	if (!AA_WaitForGame) {
 		SetTimer, , Off
 		return
