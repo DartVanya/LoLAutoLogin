@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.5.0.2", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.5.0.3", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -357,7 +357,12 @@ switch SoftRestart
 	Default:
 		ToolTipFM.Set("Игра запущена. Ожидание окна Riot Client…", 3000, LAL, TT_Icon)
 }
-While !WinExist("ahk_class RCLIENT ahk_exe RiotClientUx.exe") {
+RC_RememberPassOn := false
+While !WinExist("ahk_class RCLIENT ahk_exe RiotClientUx.exe"){
+	if (WinExist("ahk_exe LeagueClientUx.exe")) {
+		RC_RememberPassOn := true
+		goto, RemoveRCtrayIcon
+	}
 	if WinExist("ahk_class ScreenManagerWindowClass ahk_exe RiotClientServices.exe") {
 		WinGetPos,,, SM_w, SM_h
 		if (SM_w = 392 && SM_h = 488) {
@@ -442,9 +447,10 @@ While WinExist("ahk_id" . RC.HWND)
 	Gdip_DisposeImage(pBitmap)
 	Sleep, 50
 }
+Gdip_DisposeImage(pBitmap)
+
 if (!Persistent_flag && !CloseRC_flag)
 	ExitApp
-Gdip_DisposeImage(pBitmap)
 WaitForLC := CloseRC_flag
 if (CloseRC_flag) {
 	TrayPopUp.SuspendGui(),  ToolTipFM.SetOffset(, -40)
@@ -459,7 +465,7 @@ if (Persistent_flag && !CloseRC_flag) {
 MainStart := false
 Critical, Off
 
-FuckYouRiots := 1250
+FuckYoRiots := 1250
 While !WinExist("ahk_exe LeagueClientUx.exe") && WinExist("ahk_id" . RC.HWND) {
 	if gInterrupt {
 		gInterrupt := WaitForLC := false
@@ -488,9 +494,13 @@ While !WinExist("ahk_exe LeagueClientUx.exe") && WinExist("ahk_id" . RC.HWND) {
 }
 Gdip_DisposeImage(pBitmap)
 Process, Wait, LeagueClient.exe, 5
+
+RemoveRCtrayIcon:
 if (CloseRC_flag) {
-	Process, Close, % RC.PID
-	Process, WaitClose, % RC.PID
+	if (!RC_RememberPassOn) {
+		Process, Close, % RC.PID
+		Process, WaitClose, % RC.PID
+	}
 	DetectHiddenWindows, On
 	TrayIcon_Remove(WinExist("ahk_class TrayIconClass ahk_exe RiotClientServices.exe"), 1)
 	DetectHiddenWindows, Off
@@ -706,7 +716,7 @@ InitGui() {
 	AddTooltip(hPassCheck, "Показать/скрыть пароль (Ctrl+Space)")
 	AddTooltip(hLocale, "Выбор языка локали для клиента игры")
 	AddTooltip(hEnterPass, "Сохранить и выполнить вход в игру (Enter)")
-	AddTooltip(hCreateShortcut, "Создать ярлык на выбранные аккаунт (Ctrl+Q).`nОткроется стандартное окно сохранения.")
+	AddTooltip(hCreateShortcut, "Создать ярлык на выбранный аккаунт (Ctrl+Q).`nОткроется стандартное окно сохранения.")
 	AddTooltip(hAddAccount, "Добавить аккаунт в базу (Ctrl+N)")
 	AddTooltip(hDeleteAccount, "Удалить аккаунт из базы (Del)")
 	AddToolTip("AutoPopDelay", 10)
