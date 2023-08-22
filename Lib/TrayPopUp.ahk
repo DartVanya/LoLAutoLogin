@@ -36,7 +36,7 @@
         {
         case this.uId:
         {
-            switch (lparam & 0xFFFF)
+            switch (lParam & 0xFFFF)
             {
             case NIN_POPUPOPEN:
                 this.POPUPCLOSE := false
@@ -56,7 +56,7 @@
                 this.POPUPCLOSE := true
             }
             ReTranslateMsg:
-            return DllCall("SendMessage", "UPtr", hwnd, "UInt", msg, "UPtr", (lparam >> 16) & 0xFFFF, "Ptr", lparam & 0xFFFF)
+            return DllCall("SendMessage", "UPtr", hwnd, "UInt", msg, "UPtr", (lParam >> 16) & 0xFFFF, "Ptr", lParam & 0xFFFF)
         }
         case this.WM_NCACTIVATE:
             if (!this.GuiOff && hwnd = this.HWND && !wParam) {

@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.5.0.3", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.5.1.0", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -336,6 +336,11 @@ if (OldLocale.Value(1) != Locale) {
 	NewLocale := true
 }
 File.Close
+EnvGet, LocalAppData, LOCALAPPDATA
+FileRead, RiotGamesPrivateSettings, %LocalAppData%\Riot Games\Riot Client\Data\RiotGamesPrivateSettings.yaml
+if (!ErrorLevel && InStr(RiotGamesPrivateSettings, "Region"))
+	FileDelete, %LocalAppData%\Riot Games\Riot Client\Data\RiotGamesPrivateSettings.yaml
+RiotGamesPrivateSettings := ""
 if (NewLocale) {
 	Kill_RC_LC()
 	WinWaitClose, ahk_class RCLIENT ahk_exe RiotClientUx.exe, , 3
@@ -343,7 +348,7 @@ if (NewLocale) {
 }
 if WinExist("ahk_class RCLIENT ahk_exe RiotClientUx.exe")
 	goto, AlreadyOpen
-Run, % LoLPath "LeagueClient.exe"
+Run, % Substr(LoLPath, 1, Instr(LoLPath, "\",, -1)) "Riot Client\RiotClientServices.exe --launch-product=league_of_legends --launch-patchline=live"
 switch SoftRestart
 {
 	case -1:
@@ -357,12 +362,12 @@ switch SoftRestart
 	Default:
 		ToolTipFM.Set("Игра запущена. Ожидание окна Riot Client…", 3000, LAL, TT_Icon)
 }
-RC_RememberPassOn := false
+; RC_RememberPassOn := false
 While !WinExist("ahk_class RCLIENT ahk_exe RiotClientUx.exe"){
-	if (WinExist("ahk_exe LeagueClientUx.exe")) {
-		RC_RememberPassOn := true
-		goto, RemoveRCtrayIcon
-	}
+	; if (WinExist("ahk_exe LeagueClientUx.exe")) {
+	; 	RC_RememberPassOn := true
+	; 	goto, RemoveRCtrayIcon
+	; }
 	if WinExist("ahk_class ScreenManagerWindowClass ahk_exe RiotClientServices.exe") {
 		WinGetPos,,, SM_w, SM_h
 		if (SM_w = 392 && SM_h = 488) {
@@ -495,12 +500,9 @@ While !WinExist("ahk_exe LeagueClientUx.exe") && WinExist("ahk_id" . RC.HWND) {
 Gdip_DisposeImage(pBitmap)
 Process, Wait, LeagueClient.exe, 5
 
-RemoveRCtrayIcon:
 if (CloseRC_flag) {
-	if (!RC_RememberPassOn) {
-		Process, Close, % RC.PID
-		Process, WaitClose, % RC.PID
-	}
+	Process, Close, % RC.PID
+	Process, WaitClose, % RC.PID
 	DetectHiddenWindows, On
 	TrayIcon_Remove(WinExist("ahk_class TrayIconClass ahk_exe RiotClientServices.exe"), 1)
 	DetectHiddenWindows, Off
@@ -912,7 +914,7 @@ if (NewAcc) {
 	UpdateAccsMenu(false)
 	return
 }
-WriteAccount(OldAccGui := AccNumberGui)
+WriteAccount(OldAccGui := AccNumberGUI)
 GuiControl, Text, Login
 GuiControl, Text, Password
 GuiControl, Choose, Locale, ru_RU
@@ -965,12 +967,12 @@ return
 Delete::
 DeleteAccount:
 Gui, Submit, NoHide
-IniDelete, % IniName, % AccNumberGui
+IniDelete, % IniName, % AccNumberGUI
 GuiControl, +AltSubmit, % hAccNumberGUI
 Gui, Submit, NoHide
 GuiControl, , AccNumberGUI, |
 GuiControl, , AccNumberGUI, % GetAccsList(AccsCount)
-GuiControl, Choose, AccNumberGUI, % (AccNumberGui < AccsCount) ? AccNumberGui : AccsCount
+GuiControl, Choose, AccNumberGUI, % (AccNumberGUI < AccsCount) ? AccNumberGUI : AccsCount
 GuiControl, -AltSubmit, % hAccNumberGUI
 ReadAccount()
 UpdateAccsMenu(false)
@@ -986,18 +988,18 @@ WinMouseOver(hwnd:="") {
 #If WinActive("ahk_id" . hLAL) || WinMouseOver()
 Up::
 ScrollUp:
-if (Newacc || AccNumberGui = 1)
+if (NewAcc || AccNumberGUI = 1)
 	return
-GuiControl, Choose, AccNumberGUI, % AccNumberGui-1
+GuiControl, Choose, AccNumberGUI, % AccNumberGUI-1
 ReadAccount()
 return
 
 #If WinActive("ahk_id" . hLAL) || WinMouseOver()
 Down::
 ScrollDown:
-if (Newacc || AccNumberGui = AccsCount)
+if (NewAcc || AccNumberGUI = AccsCount)
 	return
-GuiControl, Choose, AccNumberGUI, % AccNumberGui+1
+GuiControl, Choose, AccNumberGUI, % AccNumberGUI+1
 ReadAccount()
 return
 
@@ -1064,7 +1066,7 @@ CheckPath() {
 	if FileExist(LoLPath . "LeagueClient.exe")
 		return true
 	else {
-		RegRead, LoLPath, HKLM, % "SOFTWARE\WOW6432Node\Riot Games, Inc\League of Legends", Location
+		RegRead, LoLPath, HKCU, % "Software\Microsoft\Windows\CurrentVersion\Uninstall\Riot Game league_of_legends.live", InstallLocation
 		if (ErrorLevel) {
 			EnvGet, SysDrive, HOMEDRIVE
 			if FileExist(SysDrive . "\Riot Games\League of Legends\LeagueClient.exe") {
@@ -1082,6 +1084,8 @@ CheckPath() {
 			IfMsgBox, Cancel
 				return false
 		}
+		else
+			LoLPath := StrReplace(LoLPath, "/", "\")
 	}
 	IniWrite, % LoLPath .= "\", % IniName, % LAL_sec, LoLPath
 	return true
@@ -1148,7 +1152,7 @@ WheelOnOff("Off")
 if !AccsCount
 	gosub, AddAccount
 else {
-	AccNumber := AccNumberGui
+	AccNumber := AccNumberGUI
 	IniWrite, % Login, % IniName, % AccNumber, Login
 	IniWrite, % PassEnc := Crypt.Encrypt.StrEncrypt(Password, Fingerprint, 7, 6), % IniName, % AccNumber, PasswordEnc
 	pass_cleanup()
@@ -1171,11 +1175,11 @@ Gui, +OwnDialogs
 Gui, Submit, NoHide
 if !CheckCorrectEnter()
 	return
-WriteAccount(AccNumberGui)
+WriteAccount(AccNumberGUI)
 FileSelectFile, SC_path, S, %A_Desktop%\LoL Auto Login - %Login%.lnk, Выберите путь к LeagueClient.exe, Ярлыки (*.lnk)
 if !(SC_path)
 	goto, ShowGui
-FileCreateShortcut, %A_ScriptFullPath%, %SC_path%, %A_ScriptDir%, -acc %AccNumberGui%
+FileCreateShortcut, %A_ScriptFullPath%, %SC_path%, %A_ScriptDir%, -acc %AccNumberGUI%
 goto, ShowGui
 
 #If WinActive("ahk_id" . hLAL) || WinMouseOver()
@@ -1382,7 +1386,7 @@ MainExit(DoExit = true) {
 	Menu, Tray, Rename, 1&, % LAL . A_Tab . LAL_hk
 	MainStart := false
 }
-
+WinActivate, [ WinTitle, WinText, ExcludeTitle, ExcludeText]
 TryExit() {
 	global
 	local HoverOnTray
