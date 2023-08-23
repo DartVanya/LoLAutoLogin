@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.5.1.0", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.5.2.0", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -106,7 +106,7 @@ global ProgName := LAL . " by " . Author
 	 , IniCopyright := "[" . LAL_sec . "] - " . ProgName . ". Version " . ProgVersion
 	 , SC_Name := LAL . " Config.lnk"
 	 , MainStart := false, CloseRC_flag, WaitForLC, Persistent_flag, SoftRestart, ForceRestart, gInterrupt := false
-	 , CheckForUpdate_flag, hLAL, DisableCenteredMB := false, LoLPath, LAL_debug
+	 , CheckForUpdate_flag, hLAL, DisableCenteredMB := false, LoLPath, LAL_debug, AutoRun_flag, RestartMainAfterUpdate
 	 , AutoAccept, AA_WaitForGame := false, AA_Once := 1, AA_Always := 2, AA_EnableNotify := 4, AA_mailto
 	 , AA_mail := "lolautologin.aa@gmail.com", AA_AppPswd := "lody xypa wsus pnmj", AA_Server := "smtp.gmail.com", AA_Port := 465
 	 , AA_ScanDelay := 200, AA_SolutionWaitDelay := 100
@@ -145,7 +145,7 @@ if GetAccsList() {
 }
 
 Menu, Tray, Add, % LAL . A_Tab . LAL_hk, TryMain
-IniRead, Persistent_flag, % IniName, % LAL_sec, Persistent, % false
+IniRead, Persistent_flag, % IniName, % LAL_sec, Persistent, % true
 if !(Persistent_flag)
 	Menu, Tray, Disable, 1&
 Menu, Tray, Default, 1&
@@ -197,18 +197,18 @@ Menu, Tray, Add, %MenuPersistent%, LAL_Persistent
 Autorun := new Autorun(MenuAutorun, "-autorun", "AR_SysMenuCheck")
 Menu, Tray, Add, %MenuUpdateCheck%, ToggleUpdateCheck
 Menu, Tray, Add, %MenuExit%, AppExit
-IniRead, CloseRC_flag, % IniName, % LAL_sec, CloseRC, % false
+IniRead, CloseRC_flag, % IniName, % LAL_sec, CloseRC, % true
 Menu, Tray, % (CloseRC_flag ? "":"Un") "Check", 9&
 Menu, Tray, % (Persistent_flag ? "":"Un") "Check", 10&
 IniRead, CheckForUpdate_flag, % IniName, % LAL_sec, CheckForUpdate, % true
 Menu, Tray, % (CheckForUpdate_flag ? "":"Un") "Check", 12&
 Menu, Tray, Icon
 
-;global TT_Icon := TrayIcon_GetInfo(A_ScriptHwnd, 0x404).hicon
 global 	TT_Icon := LoadPicture(A_IsCompiled ? A_ScriptFullPath : "lc.ico", , icon_type)
 		, ToolTipFM := new ToolTipFM()
 		, UpdateRequest, UpdateEvent, Update := {"size": 0, "FullSize": 0}
 		, UpdateUrl := "https://github.com/DartVanya/LoLAutoLogin/releases/latest/download/LoL.Auto.Login.exe"
+		, VersionUrl := "https://raw.githubusercontent.com/DartVanya/LoLAutoLogin/main/version.txt"
 
 InitGui()
 OnMessage(0x404, "AHK_NotifyTrayIcon")
@@ -223,11 +223,9 @@ if !FileExist(SC_Name)
 if FileExist(A_ScriptName ".old")
 	FileDelete, % A_ScriptName ".old"
 
-if (CheckForUpdate_flag && DllCall("Sensapi\IsNetworkAlive","UintP", lpdwFlags)) {
-	UpdateRequest := ComObjCreate("Msxml2.XMLHTTP")
-	UpdateRequest.open("GET", "https://raw.githubusercontent.com/DartVanya/LoLAutoLogin/main/version.txt", true)
-	UpdateRequest.onreadystatechange := Func("CheckForUpdate")
-	UpdateRequest.send()
+if (CheckForUpdate_flag) {
+	CheckForUpdate()
+	SetTimer, CheckForUpdate, 86400000	; Once a day
 }
 
 if (ShowGuiFlag || !FileExist(IniName))
@@ -490,7 +488,7 @@ While !WinExist("ahk_exe LeagueClientUx.exe") && WinExist("ahk_id" . RC.HWND) {
 	if ((RC.loginColor_play & 0xFF) > 0xC0 && RC.loginColor_play < 0x3A0000) {
 		Sleep, % FuckYouRiots
 		Process, Exist, LeagueClient.exe
-		if !(ErrorLevel)
+		if (!ErrorLevel)
 			ControlClick, % "x" . RC.Coords.X_play . " y" . RC.Coords.Y_play, % "ahk_id" . RC.HWND
 		break
 	}
@@ -861,7 +859,7 @@ Move_MsgBox(wParam) {
 WM_DISPLAYCHANGE() {
 	DetectHiddenWindows, On
 	WinSetTitle, ahk_id %A_ScriptHwnd%,, LAL_reload
-	Run % (OldCmdLine := DllCall("GetCommandLine", "Str")) ~= "\s[/-//]autorun" ? OldCmdLine : (OldCmdLine " -autorun")
+	Run, % DllCall("GetCommandLine", "Str") (!AutoRun_flag ? " -autorun" : "")
 	ExitApp
 }
 
@@ -889,6 +887,8 @@ ToggleUpdateCheck() {
 	IniWrite, % CheckForUpdate_flag := !CheckForUpdate_flag, % IniName, % LAL_sec, CheckForUpdate
 	Menu, Tray, ToggleCheck, 12&
 	SysMenu.ToggleCheck("ToggleUpdateCheck", , true)
+	if (CheckForUpdate_flag)
+		CheckForUpdate()
 }
 
 #If (WinActive("ahk_id" . hLAL) || WinMouseOver()) && AccsCount
@@ -1507,22 +1507,33 @@ WM_COPYDATA(wParam, lParam) {
 }
 
 CheckForUpdate() {
+	if (DllCall("Sensapi.dll\IsNetworkAlive","UintP", lpdwFlags)) {
+		UpdateRequest := ComObjCreate("Msxml2.XMLHTTP")
+		UpdateRequest.open("GET", VersionUrl, true)
+		UpdateRequest.onreadystatechange := Func("ReceiveVersion")
+		UpdateRequest.send()
+	}
+}
+
+ReceiveVersion() {
 	if (UpdateRequest.readyState != 4)  ; Not done yet.
         return
 	if (UpdateRequest.status == 200) {  ; OK.
 		if (VerCompare(ProgVersion, NewVersion := UpdateRequest.responseText) < 0) {
 			DisableCenteredMB := true
-			MsgBox, 36, % ProgName,
+			Gui %hLAL%: +OwnDialogs
+			MsgBox, 262180, % ProgName,
 			(LTrim
 				Доступна новая версия LoL Auto Login.
 				Выполнить обновление?
 
-				Текущая версия: %ProgVersion%
+				Текущая версия:   %ProgVersion%
 				Доступная версия: %NewVersion%
 			)
 			DisableCenteredMB := false
 			IfMsgBox, Yes
 			{
+				RestartMainAfterUpdate := MainStart, gInterrupt := true
 				FileMove, % A_ScriptName, % A_ScriptName ".old"
 				ToolTipFM.Color(, 0xCC3300), ToolTipFM.Set("Выполняется загрузка обновления...", -1, LAL, TT_Icon)
 
@@ -1552,7 +1563,7 @@ ReceiveUpdate(pData, length, moreDataAvailable) {
 					  . Update.FullSizeTT "/" Update.FullSizeTT " МБ`nУстановка обновления...", -1, LAL, TT_Icon)
 		Update.File.Close()
 		Sleep, 700
-		Run, % DllCall("GetCommandLine", "Str")
+		Run, % DllCall("GetCommandLine", "Str") (!AutoRun_flag && !RestartMainAfterUpdate ? " -autorun" : "")
 		ExitApp
 	}
 }
