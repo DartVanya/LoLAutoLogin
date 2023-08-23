@@ -437,7 +437,7 @@ Class SysMenu {
 	__FindItem(ByRef Item, ByRef SubMenu, ByRef ByHandler) {
 		if !(hMenu := SubMenu ? this.__Menus[SubMenu].hMenu : this.SystemMenu.hMenu)
 			return false
-		if item is integer
+		if Item is integer
 		{
 			cnt := SubMenu ? this.__Menus[SubMenu].count : this.SystemMenu.count
 			if (Item > cnt || -Item > cnt)

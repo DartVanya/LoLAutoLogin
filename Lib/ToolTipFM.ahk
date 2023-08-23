@@ -106,7 +106,7 @@
 	__SetHook(on := true) {  ; https://www.autohotkey.com/boards/viewtopic.php?p=286942#p286942
 		static WH_MOUSE_LL := 14
 		if !on
-			this.hHook := !DllCall("UnhookWindowsHookEx", "Ptr", this.hHook)
+			DllCall("UnhookWindowsHookEx", "Ptr", this.hHook), this.hHook := false
 		else if (!this.hHook)
 			this.hHook := DllCall("SetWindowsHookEx", "Int", WH_MOUSE_LL, "Ptr", this.pCallBack
 									, "Ptr", ToolTipFM.hModule, "UInt", 0, "Ptr")
