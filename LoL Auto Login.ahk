@@ -225,7 +225,7 @@ if FileExist(A_ScriptName ".old")
 
 if (CheckForUpdate_flag) {
 	CheckForUpdate()
-	SetTimer, CheckForUpdate, 86400000	; Once a day
+	;SetTimer, CheckForUpdate, 86400000	; Once a day
 }
 
 if (ShowGuiFlag || !FileExist(IniName))
