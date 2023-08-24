@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.5.2.0", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.5.2.1", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -625,6 +625,8 @@ WaitForGameLoop() {
 	;	&& (col2 := Gdip_GetPixel(pBitmap, LC_X2, LC_Y) & 0x00FFFFFF) = 0x1E252A) {
 	if (c1 = 0x1E252A && c2 = 0x1E252A) {
 		SetTimer, WaitForSolution, Off
+		WinActivate, ahk_id %LC_HWND%
+		WinWaitActive, ahk_id %LC_HWND%
 		Loop, 3 {
 			ControlClick, % "x" LC_X_accept " y" LC_Y, % "ahk_id " LC_HWND
 			Sleep, 50
