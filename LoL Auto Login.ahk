@@ -2,7 +2,7 @@
 #Requires AutoHotkey Unicode 64-bit
 
 #Include <ScriptGuard1>
-global ProgVersion := "5.5.2.1", Author := "Dart Vanya", LAL := "LoL Auto Login"
+global ProgVersion := "5.5.3.0", Author := "Dart Vanya", LAL := "LoL Auto Login"
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_author = %A_PriorLine~U)^(.+"){3}(.+)".*$~$2%
 ;@Ahk2Exe-Let U_LAL = %A_PriorLine~U)^(.+"){5}(.+)".*$~$2%
@@ -154,7 +154,7 @@ Menu, Tray, Disable, 2&
 UpdateAccsMenu(-1)
 Menu, Tray, Add
 IniRead, AutoAccept, % IniName, % LAL_sec, AutoAccept, % false
-IniRead, AA_mailto, % IniName, % LAL_sec, AA_mailto, % false
+IniRead, AA_mailto, % IniName, % LAL_sec, AA_mailto, % ""
 if (!AA_mailto)
 	IniWrite, % AutoAccept &= ~AA_EnableNotify, % IniName, % LAL_sec, AutoAccept
 Menu, AutoAccept, Add, %MenuAA_Once%%A_Tab%%AA_HK_Once%, AA_Handler
@@ -178,7 +178,7 @@ Menu, ForceRestart, Add, %MenuFRfast%, ForceRestartHandler
 Menu, ForceRestart, Add, %MenuFRfull%, ForceRestartHandler
 Menu, ForceRestart, Add, %MenuFRask%, ForceRestartHandler
 Menu, ForceRestart, Add
-Menu, ForceRestart, Add, %MenuFRsleep%, ForceRestartFromSleep
+Menu, ForceRestart, Add, %MenuFRsleep%, ForceRestartHandler
 Menu, Tray, Add, %MenuFR%, :ForceRestart
 IniRead, ForceRestart, % IniName, % LAL_sec, ForceRestart, % false
 switch ForceRestart & 3
@@ -264,10 +264,8 @@ if FirstRun {
 }
 GameExistCheck:
 Process, Exist, RiotClientServices.exe
-if (ErrorLevel && !WinExist("ahk_exe LeagueClientUx.exe") && !WinExist("ahk_exe RiotClientUx.exe")) {
+if (ErrorLevel && !WinExist("ahk_exe LeagueClientUx.exe") && !WinExist("ahk_exe RiotClientUx.exe"))
 	Kill_RC_LC()
-	Sleep, 500
-}
 if (LChWND := WinExist("ahk_exe LeagueClientUx.exe")) {
 	switch ForceRestart & 3
 	{
@@ -326,15 +324,19 @@ if !DllCall("Sensapi\IsNetworkAlive","UintP", lpdwFlags) {
 		return
 	}
 }
-File := FileOpen(LoLPath . "Config\LeagueClientSettings.yaml", "rw")
-RegExMatch(File.Read(), "O)locale:\s*""([a-z]+_[A-Z]+)""", OldLocale)
-if (OldLocale.Value(1) != Locale) {
-	File.Seek(OldLocale.Pos(1)-1)
-	File.Write(Locale)
-	NewLocale := true
-}
-File.Close
 EnvGet, LocalAppData, LOCALAPPDATA
+SettingsYaml := {LCS: FileOpen(A_AppDataCommon . "\Riot Games\Metadata\league_of_legends.live\league_of_legends.live.product_settings.yaml", "rw")
+				 , RCS: FileOpen(LocalAppData . "\Riot Games\Riot Client\Config\RiotClientSettings.yaml", "rw") }
+for k,File in SettingsYaml {
+	RegExMatch(File.Read(), "O)\slocale:\s*""([a-z]+_[A-Z]+)""", OldLocale)
+	if (OldLocale.Value(1) != Locale) {
+		File.Seek(OldLocale.Pos(1)-1)
+		File.Write(Locale)
+		NewLocale := true
+	}
+	File.Close
+}
+SettingsYaml := ""
 FileRead, RiotGamesPrivateSettings, %LocalAppData%\Riot Games\Riot Client\Data\RiotGamesPrivateSettings.yaml
 if (!ErrorLevel && InStr(RiotGamesPrivateSettings, "Region"))
 	FileDelete, %LocalAppData%\Riot Games\Riot Client\Data\RiotGamesPrivateSettings.yaml
@@ -395,7 +397,8 @@ WinGetPos, , , RCw, RCh, % "ahk_id" . RC.HWND
 RC.Coords.X := Round(RCw * .043), RC.Coords.Y := Round(RCh * .29)
 , RC.Coords.X_play := Round(RCw * .14), RC.Coords.Y_play := Round(RCh * .91)
 , RC.Coords.Y_err := Round(RCh * .337), RC.Coords.Y_load := Round(RCh * .362)
-ToolTipFM.Off(), MinWait := 0
+ToolTipFM.Off(), FuckYouRiots := 4
+
 
 While WinExist("ahk_id" . RC.HWND)
 {
@@ -424,7 +427,7 @@ While WinExist("ahk_id" . RC.HWND)
 	}
 	if (((RC.loginColor_load = 0xEDEDED || RC.loginColor_load = 0xE7E7E7) && RC.loginColor > 0xE00000)
 		|| (ErrCoords := RC.loginColor_err > 0xF20000 && RC.loginColor_err < 0xF40000)) {
-		if (MinWait++ < 2)
+		if (FuckYouRiots--)
 			goto, ScanNext	
 		Critical
 		Process, Exist, LeagueClient.exe
@@ -468,7 +471,6 @@ if (Persistent_flag && !CloseRC_flag) {
 MainStart := false
 Critical, Off
 
-FuckYoRiots := 1250
 While !WinExist("ahk_exe LeagueClientUx.exe") && WinExist("ahk_id" . RC.HWND) {
 	if gInterrupt {
 		gInterrupt := WaitForLC := false
@@ -486,7 +488,8 @@ While !WinExist("ahk_exe LeagueClientUx.exe") && WinExist("ahk_id" . RC.HWND) {
 	}
 	RC.loginColor_play := Gdip_GetPixel(pBitmap, RC.Coords.X_play, RC.Coords.Y_play) & 0x00FFFFFF
 	if ((RC.loginColor_play & 0xFF) > 0xC0 && RC.loginColor_play < 0x3A0000) {
-		Sleep, % FuckYouRiots
+		if (SoftRestart)
+			Sleep, 1250
 		Process, Exist, LeagueClient.exe
 		if (!ErrorLevel)
 			ControlClick, % "x" . RC.Coords.X_play . " y" . RC.Coords.Y_play, % "ahk_id" . RC.HWND
@@ -745,7 +748,7 @@ InitGui() {
 				ForceRestart,	%MenuFRfull%,		ForceRestartHandler
 				ForceRestart,	%MenuFRask%,		ForceRestartHandler
 				ForceRestart, 	MF_SEPARATOR
-				ForceRestart,	%MenuFRsleep%,		ForceRestartFromSleep
+				ForceRestart,	%MenuFRsleep%,		ForceRestartHandler
 		"%MenuCloseRC%",							CloseRC
 		"%MenuPersistent%",							LAL_Persistent
 		"%MenuUpdateCheck%",						ToggleUpdateCheck
@@ -1240,7 +1243,6 @@ RestoreMainPopUp(EscPress:=false) {
 }
 
 ForceRestartHandler(ItemName, ItemPos) {
-	global
 	switch ItemPos
 	{
 		case 1:
@@ -1249,16 +1251,14 @@ ForceRestartHandler(ItemName, ItemPos) {
 			ForceRestart := (ForceRestart & 4) | 2
 		case 3:
 			ForceRestart := ForceRestart & 4
+		case 5:
+			Menu, ForceRestart, ToggleCheck, 5&
+			SysMenu.ForceRestart.ToggleCheck(5)
+			IniWrite, % ForceRestart ^= 4, % IniName, % LAL_sec, ForceRestart
+			return
 	}
-	IniWrite, % ForceRestart, % IniName, % LAL_sec, ForceRestart
 	SysMenu.CheckRadio(ItemPos, "ForceRestart", true, 1, 3), SysMenu.ForceRestart.CheckRadio(ItemPos, 1, 3)
-}
-
-ForceRestartFromSleep() {
-	global
-	Menu, ForceRestart, ToggleCheck, 5&
-	SysMenu.ForceRestart.ToggleCheck(5)
-	IniWrite, % ForceRestart ^= 4, % IniName, % LAL_sec, ForceRestart
+	IniWrite, % ForceRestart, % IniName, % LAL_sec, ForceRestart
 }
 
 AccKey:
@@ -1373,13 +1373,24 @@ GetAccsList(ByRef AccsCount:="") {
 Kill_RC_LC() {
 	Process, Close, LeagueClient.exe
 	Process, Close, RiotClientServices.exe
-	Process, WaitClose, RiotClientServices.exe, 5
-	Process, WaitClose, RiotClientCrashHandler.exe, 5
-	Process, WaitClose, LeagueClient.exe, 5
-	Process, WaitClose, LeagueCrashHandler64.exe, 5
-	Process, WaitClose, LeagueClientUxRender.exe, 5
-	Process, WaitClose, RiotClientUx.exe, 5
-	Process, WaitClose, RiotClientUxRender.exe, 5
+	Loop {
+		WaitForClose := 0
+		Sleep, 100
+		Process, Exist, RiotClientServices.exe
+		WaitForClose += ErrorLevel
+		Process, Exist, RiotClientCrashHandler.exe
+		WaitForClose += ErrorLevel
+		Process, Exist, LeagueClient.exe
+		WaitForClose += ErrorLevel
+		Process, Exist, LeagueCrashHandler64.exe
+		WaitForClose += ErrorLevel
+		Process, Exist, LeagueClientUxRender.exe
+		WaitForClose += ErrorLevel
+		Process, Exist, RiotClientUx.exe
+		WaitForClose += ErrorLevel
+		Process, Exist, RiotClientUxRender.exe
+		WaitForClose += ErrorLevel
+	} Until !WaitForClose
 }
 
 MainExit(DoExit = true) {
