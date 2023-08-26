@@ -488,7 +488,7 @@ While !WinExist("ahk_exe LeagueClientUx.exe") && WinExist("ahk_id" . RC.HWND) {
 	}
 	RC.loginColor_play := Gdip_GetPixel(pBitmap, RC.Coords.X_play, RC.Coords.Y_play) & 0x00FFFFFF
 	if ((RC.loginColor_play & 0xFF) > 0xC0 && RC.loginColor_play < 0x3A0000) {
-		if (SoftRestart)
+		if (SoftRestart = true)
 			Sleep, 1250
 		Process, Exist, LeagueClient.exe
 		if (!ErrorLevel)
